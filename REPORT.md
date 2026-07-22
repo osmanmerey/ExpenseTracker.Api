@@ -222,11 +222,25 @@ uygulamalar eklendi.
 
 ---
 
-## 7. Ekran/Controller Değiştirmeden Yapılan DI Değişikliği
+## 7. DI Değişikliği ile Veri Kaynağının Değiştirilmesi
 
-Yalnızca `lib/main.dart` içindeki bağımlılık kaydı (DI) değiştirildi. Firebase
-uygulamaları API uygulamalarıyla değiştirildi; `AuthController`,
-`ExpenseController` ve tüm sayfalar (`*_page.dart`) **hiç değişmedi**.
+**Firebase → API geçişinin kendisi** kapsamında Flutter tarafında yapılan
+değişiklik yalnızca **veri katmanı ve bağımlılık kaydıdır**: yeni `ApiAuthRepository`
+ve `ApiExpenseRepository` sınıfları ile `ApiClient`, `TokenStorage`, `ApiConstants`
+altyapısı eklendi ve `lib/main.dart` içindeki DI kaydı Firebase uygulamalarından
+bu API uygulamalarına çevrildi.
+
+Bu geçiş sırasında `AuthController`, `ExpenseController` ve sayfalar (`*_page.dart`)
+**API'ye bağlanmak için değiştirilmedi** — soyut `IAuthRepository` /
+`IExpenseRepository` sözleşmeleri korunduğu için veri kaynağı arayüz koduna
+dokunulmadan değiştirilebildi.
+
+> Not: Depo geçmişinde bu presentation dosyalarında (ör. `auth_page.dart`,
+> `expense_form_page.dart`, ilgili controller'lar) görülen değişiklikler, API
+> geçişinin parçası değildir; bunlar Flutter uygulamasının **daha önceki
+> geliştirme aşamasında** yapılmış işlerdir (mimari sızıntı düzeltmesi, tarih
+> seçici ve ondalık klavye gibi UI iyileştirmeleri). API geçişi bu dosyaları
+> değiştirmeyi gerektirmemiştir.
 
 Önce (Firebase):
 
@@ -250,8 +264,8 @@ Get.put<IAuthRepository>(ApiAuthRepository(Get.find<ApiClient>(), Get.find<Token
 Get.put<IExpenseRepository>(ApiExpenseRepository(Get.find<ApiClient>()));
 ```
 
-Controller kayıtları aynı kaldığı için sözleşme uyumu sayesinde arayüz koda
-dokunulmadan veri kaynağı değişti.
+Controller kayıtları aynı imza ile korunduğu için sözleşme uyumu sayesinde
+arayüz koduna dokunulmadan yalnızca veri kaynağı (Firebase → API) değişti.
 
 ---
 
