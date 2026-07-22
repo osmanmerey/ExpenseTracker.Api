@@ -1,41 +1,58 @@
-ExpenseTracker API (Backend)
-Bu proje, harcama takip uygulamasının veri ve kimlik yönetimi katmanını Firebase'den ayrıştırarak .NET 8 altyapısına taşıyan Web API projesidir.
+# ExpenseTracker API
 
-Teknik Mimarisi ve Özellikler
-Altyapı: ASP.NET Core 8 Web API.
+.NET 8, Entity Framework Core ve PostgreSQL ile geliştirilmiş harcama takip Web API'si.
 
 Veritabanı: PostgreSQL (Entity Framework Core ile yönetilmektedir).
 
-Güvenlik:
+- BCrypt ile parola hashleme
+- JWT Bearer kimlik doğrulama
+- Kullanıcıya özel, yetkilendirilmiş harcama CRUD işlemleri
+- DTO tabanlı istek/yanıt modelleri ve girdi doğrulama
+- Swagger üzerinden JWT destekli API testi
+- Flutter Web istemcileri için yapılandırılabilir CORS
 
-Parola koruması için BCrypt algoritması ile hashing.
+## Kurulum
 
-Kimlik doğrulama için JWT (JSON Web Token) tabanlı yetkilendirme.
+Gizli bilgiler repoda tutulmaz. Proje dizininde User Secrets yapılandırın:
 
-Yapı: Katmanlı mimari prensiplerine uygun olarak oluşturulmuş Controller ve servis yapıları.
+```powershell
+cd ExpenseTracker.Api
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Database=expense_tracker;Username=postgres;Password=<parola>"
+dotnet user-secrets set "Jwt:Key" "<en-az-64-karakterlik-rastgele-bir-anahtar>"
+```
 
-Kurulum ve Çalıştırma
-Repoyu bilgisayarınıza klonlayın.
+Veritabanını hazırlayıp API'yi çalıştırın:
 
-PostgreSQL veritabanınızı hazırlayın ve appsettings.json içerisindeki DefaultConnection dizesini kendi veritabanı bilgilerinizle güncelleyin.
+```powershell
+dotnet ef database update
+dotnet run
+```
 
-Projeyi derleyin ve çalıştırın.
+Development ortamında Swagger arayüzü `/swagger` adresindedir. Önce kayıt veya
+giriş isteği gönderin, dönen token'ı Swagger'daki **Authorize** alanına girin.
 
-Swagger arayüzü (/swagger) üzerinden API uç noktalarını (Register/Login) test edebilirsiniz.
+## Uç noktalar
 
-ExpenseTracker Mobile (Flutter)
-Bu uygulama, harcama takibi yapan ve verilerini .NET tabanlı uzak bir API'den çeken bir Flutter projesidir.
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/users/me`
+- `PUT /api/users/me`
+- `DELETE /api/users/me`
+- `GET /api/expenses`
+- `GET /api/expenses/{id}`
+- `POST /api/expenses`
+- `PUT /api/expenses/{id}`
+- `DELETE /api/expenses/{id}`
 
-Uygulama Mimarisi
-API Entegrasyonu: IExpenseRepository ve IAuthRepository arayüzleri kullanılarak, uygulama mantığı Firebase'den API tabanlı bir sisteme taşınmıştır.
+Expense ve kullanıcı uç noktaları JWT gerektirir. Expense kayıtlarının `UserId`
+değeri token'daki kullanıcı kimliğinden sunucu tarafından atanır; istemci başka
+bir kullanıcının kayıtlarını okuyamaz veya değiştiremez.
 
-Güvenlik: Giriş sonrası alınan JWT token'lar, yüksek güvenlikli flutter_secure_storage içerisinde saklanmaktadır.
+## Postman
 
-Mimari: Uygulama, uzak veri kaynağı (API) ve yerel önbellek (Hive) ayrımını koruyarak, ekranlara (UI) dokunmadan veri kaynağı değişikliğine olanak tanıyacak şekilde modüler tasarlanmıştır.
-
-Başlıca Özellikler
-Tam güvenli JWT kimlik doğrulama akışı.
-
-Kullanıcıya özel harcama listeleme, ekleme ve yönetim.
-
-Token süresi dolduğunda otomatik oturum sonlandırma yeteneği.
+`postman/ExpenseTracker.postman_collection.json` koleksiyonunu Postman'e import
+edin. `baseUrl` koleksiyon değişkenini API adresinizle güncelleyin (varsayılan
+`https://localhost:7270`). **Login** isteği başarılı olduğunda dönen token
+otomatik olarak `token` değişkenine kaydedilir ve korumalı isteklerde
+`Authorization: Bearer` başlığı olarak kullanılır.

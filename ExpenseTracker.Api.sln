@@ -5,6 +5,8 @@ VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Api", "ExpenseTracker.Api\ExpenseTracker.Api.csproj", "{636F98F1-BE55-44B5-AB74-996415E80F41}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Api.Tests", "ExpenseTracker.Api.Tests\ExpenseTracker.Api.Tests.csproj", "{9E7EF2EA-EE9B-4E2E-BEC7-E80090183F11}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{636F98F1-BE55-44B5-AB74-996415E80F41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{636F98F1-BE55-44B5-AB74-996415E80F41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{636F98F1-BE55-44B5-AB74-996415E80F41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E7EF2EA-EE9B-4E2E-BEC7-E80090183F11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E7EF2EA-EE9B-4E2E-BEC7-E80090183F11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E7EF2EA-EE9B-4E2E-BEC7-E80090183F11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E7EF2EA-EE9B-4E2E-BEC7-E80090183F11}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
