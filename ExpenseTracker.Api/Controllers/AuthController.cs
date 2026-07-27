@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Api.DTOs;
+﻿using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,7 +21,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.RegisterAsync(request);
         if (result.EmailAlreadyExists)
-            return Conflict("Bu e-posta adresi zaten kullanılıyor.");
+            return Conflict(ErrorMessages.EmailAlreadyExists);
 
         return StatusCode(StatusCodes.Status201Created, result.User);
     }
@@ -30,7 +31,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(request);
         if (!result.Succeeded)
-            return Unauthorized("E-posta veya şifre hatalı.");
+            return Unauthorized(ErrorMessages.InvalidCredentials);
 
         return Ok(new { token = result.Token, user = result.User });
     }

@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Api.DTOs;
+﻿using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Services;
 using ExpenseTracker.Api.Services.Results;
 using Microsoft.AspNetCore.Authorization;
@@ -38,7 +39,7 @@ public class UsersController : ControllerBase
         var outcome = await _userService.UpdateCurrentUserAsync(userId, request);
         return outcome switch
         {
-            UserUpdateOutcome.EmailAlreadyExists => Conflict("Bu e-posta adresi zaten kullanılıyor."),
+            UserUpdateOutcome.EmailAlreadyExists => Conflict(ErrorMessages.EmailAlreadyExists),
             UserUpdateOutcome.NotFound => NotFound(),
             _ => NoContent()
         };

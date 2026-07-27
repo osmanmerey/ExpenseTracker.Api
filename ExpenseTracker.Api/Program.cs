@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.Data;
 using ExpenseTracker.Api.Repositories;
 using ExpenseTracker.Api.Services;
@@ -9,32 +10,31 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtKey = builder.Configuration["Jwt:Key"];
-var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-var jwtAudience = builder.Configuration["Jwt:Audience"];
+var jwtKey = builder.Configuration[ConfigurationKeys.JwtKey];
+var jwtIssuer = builder.Configuration[ConfigurationKeys.JwtIssuer];
+var jwtAudience = builder.Configuration[ConfigurationKeys.JwtAudience];
 
 // HmacSha512 (used to sign tokens) requires a key of at least 512 bits (64 bytes).
-if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 64)
-    throw new InvalidOperationException("Jwt:Key must be configured and contain at least 64 characters.");
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < SecurityConstants.MinimumJwtKeyLengthInChars)
+    throw new InvalidOperationException(ErrorMessages.JwtKeyMissing);
 
 if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
-    throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
+    throw new InvalidOperationException(ErrorMessages.JwtIssuerOrAudienceMissing);
 
 // Database provider is selectable via configuration ("Database:Provider").
 // Use "InMemory" to run without an external PostgreSQL instance; defaults to "Postgres".
-var databaseProvider = builder.Configuration["Database:Provider"] ?? "Postgres";
+var databaseProvider = builder.Configuration[ConfigurationKeys.DatabaseProvider] ?? DatabaseProviders.Postgres;
 
-if (string.Equals(databaseProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
+if (string.Equals(databaseProvider, DatabaseProviders.InMemory, StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseInMemoryDatabase("ExpenseTrackerInMemory"));
+        options.UseInMemoryDatabase(DatabaseProviders.InMemoryDatabaseName));
 }
 else
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var connectionString = builder.Configuration.GetConnectionString(ConfigurationKeys.DefaultConnectionName);
     if (string.IsNullOrWhiteSpace(connectionString))
-        throw new InvalidOperationException(
-            "ConnectionStrings:DefaultConnection must be configured using user secrets or an environment variable.");
+        throw new InvalidOperationException(ErrorMessages.ConnectionStringMissing);
 
     builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 }
@@ -88,12 +88,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(1)
+            ClockSkew = SecurityConstants.ClockSkew
         };
     });
 builder.Services.AddAuthorization();
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var allowedOrigins = builder.Configuration.GetSection(ConfigurationKeys.CorsAllowedOrigins).Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

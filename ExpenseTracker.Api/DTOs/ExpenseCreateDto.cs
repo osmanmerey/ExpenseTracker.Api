@@ -1,17 +1,18 @@
 using System.ComponentModel.DataAnnotations;
+using ExpenseTracker.Api.Common;
 
 namespace ExpenseTracker.Api.DTOs;
 
 public class ExpenseCreateDto
 {
-    [Required, StringLength(200)]
+    [Required, StringLength(ValidationConstants.ExpenseTitleMaxLength)]
     public string Title { get; set; } = string.Empty;
 
-    [Range(0.01, double.MaxValue)]
+    [Range(ValidationConstants.MinExpenseAmount, double.MaxValue)]
     public decimal Amount { get; set; }
 
     public DateTime Date { get; set; }
 
-    [Required, StringLength(100)]
+    [Required, StringLength(ValidationConstants.ExpenseCategoryMaxLength)]
     public string Category { get; set; } = string.Empty;
 }

@@ -1,0 +1,17 @@
+namespace ExpenseTracker.Api.Common;
+
+/// <summary>
+/// Centralized configuration key names (appsettings.json / user secrets / env vars),
+/// so the same literal string is never re-typed in multiple places.
+/// </summary>
+public static class ConfigurationKeys
+{
+    public const string JwtKey = "Jwt:Key";
+    public const string JwtIssuer = "Jwt:Issuer";
+    public const string JwtAudience = "Jwt:Audience";
+
+    public const string DatabaseProvider = "Database:Provider";
+    public const string DefaultConnectionName = "DefaultConnection";
+
+    public const string CorsAllowedOrigins = "Cors:AllowedOrigins";
+}
