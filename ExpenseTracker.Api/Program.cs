@@ -4,9 +4,11 @@ using ExpenseTracker.Api.Data;
 using ExpenseTracker.Api.Repositories;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,6 +95,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Brute-force protection for /api/auth/* (register/login): fixed-window limiter,
+// scoped per client IP. Limits are configurable so tests can raise them to avoid
+// flakiness while production keeps a strict default (see SecurityConstants).
+var authPermitLimit = builder.Configuration.GetValue(
+    ConfigurationKeys.AuthRateLimitPermitLimit, SecurityConstants.DefaultAuthRateLimitPermitLimit);
+var authWindowSeconds = builder.Configuration.GetValue(
+    ConfigurationKeys.AuthRateLimitWindowSeconds, SecurityConstants.DefaultAuthRateLimitWindowSeconds);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromSeconds(authWindowSeconds),
+                QueueLimit = 0
+            }));
+});
+
 var allowedOrigins = builder.Configuration.GetSection(ConfigurationKeys.CorsAllowedOrigins).Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
@@ -117,6 +142,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
