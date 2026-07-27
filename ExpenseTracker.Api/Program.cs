@@ -7,11 +7,6 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException(
-        "ConnectionStrings:DefaultConnection must be configured using user secrets or an environment variable.");
-
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -23,7 +18,24 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 64)
 if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
     throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+// Database provider is selectable via configuration ("Database:Provider").
+// Use "InMemory" to run without an external PostgreSQL instance; defaults to "Postgres".
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "Postgres";
+
+if (string.Equals(databaseProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseInMemoryDatabase("ExpenseTrackerInMemory"));
+}
+else
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException(
+            "ConnectionStrings:DefaultConnection must be configured using user secrets or an environment variable.");
+
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+}
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

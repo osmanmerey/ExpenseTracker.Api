@@ -32,6 +32,32 @@ dotnet run
 Development ortamında Swagger arayüzü `/swagger` adresindedir. Önce kayıt veya
 giriş isteği gönderin, dönen token'ı Swagger'daki **Authorize** alanına girin.
 
+## Veritabanı sağlayıcısı
+
+**Varsayılan olarak PostgreSQL kullanılır** (Development dahil tüm ortamlarda).
+Yukarıdaki `ConnectionStrings:DefaultConnection` User Secret'ı ayarlandığı
+sürece ek bir yapılandırma gerekmez.
+
+Dış bir PostgreSQL sunucusu kurmadan hızlıca çalıştırmak/test etmek isterseniz,
+EF Core InMemory sağlayıcısına geçebilirsiniz. Bunun için `appsettings.json`
+dosyalarını değiştirmeden, sadece o çalıştırma için bir ortam değişkeni
+ayarlamanız yeterlidir:
+
+```powershell
+$env:Database__Provider = "InMemory"
+dotnet run
+```
+
+veya tek seferlik:
+
+```powershell
+dotnet run --Database:Provider=InMemory
+```
+
+> ⚠️ InMemory modunda veriler işlem belleğinde tutulur ve her yeniden
+> başlatmada silinir; ayrıca EF Core migrasyon komutları (`dotnet ef ...`)
+> bu modda çalışmaz. Sadece geçici/hızlı denemeler için kullanın.
+
 ## Uç noktalar
 
 - `POST /api/auth/register`

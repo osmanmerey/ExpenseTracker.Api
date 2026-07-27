@@ -16,6 +16,9 @@
 		<!-- PostgreSQL veritabanı sağlayıcısı -->
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
 
+		<!-- In-memory veritabanı sağlayıcısı (geliştirme/test için) -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
+
 		<!-- Migration araçları -->
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
 			<PrivateAssets>all</PrivateAssets>
