@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Api.Data;
+using ExpenseTracker.Api.Repositories;
+using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -36,6 +38,15 @@ else
 
     builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 }
+
+// Repository layer: persistence-only, talks directly to AppDbContext.
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
+
+// Service layer: business rules, talks only to repositories (never to AppDbContext directly).
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IExpenseService, ExpenseService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

@@ -1,8 +1,8 @@
-﻿using ExpenseTracker.Api.Data;
-using ExpenseTracker.Api.DTOs;
+﻿using ExpenseTracker.Api.DTOs;
+using ExpenseTracker.Api.Services;
+using ExpenseTracker.Api.Services.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace ExpenseTracker.Api.Controllers;
@@ -12,11 +12,11 @@ namespace ExpenseTracker.Api.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IUserService _userService;
 
-    public UsersController(AppDbContext context)
+    public UsersController(IUserService userService)
     {
-        _context = context;
+        _userService = userService;
     }
 
     [HttpGet("me")]
@@ -25,17 +25,7 @@ public class UsersController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var user = await _context.Users
-            .AsNoTracking()
-            .Where(u => u.Id == userId)
-            .Select(u => new UserResponseDto
-            {
-                Id = u.Id,
-                Name = u.Name,
-                Email = u.Email
-            })
-            .FirstOrDefaultAsync();
-
+        var user = await _userService.GetCurrentUserAsync(userId);
         return user is null ? NotFound() : Ok(user);
     }
 
@@ -45,18 +35,13 @@ public class UsersController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        if (await _context.Users.AnyAsync(u => u.Email == normalizedEmail && u.Id != userId))
-            return Conflict("Bu e-posta adresi zaten kullanılıyor.");
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user is null)
-            return NotFound();
-
-        user.Name = request.Name.Trim();
-        user.Email = normalizedEmail;
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var outcome = await _userService.UpdateCurrentUserAsync(userId, request);
+        return outcome switch
+        {
+            UserUpdateOutcome.EmailAlreadyExists => Conflict("Bu e-posta adresi zaten kullanılıyor."),
+            UserUpdateOutcome.NotFound => NotFound(),
+            _ => NoContent()
+        };
     }
 
     [HttpDelete("me")]
@@ -65,17 +50,10 @@ public class UsersController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var user = await _context.Users.FindAsync(userId);
-        if (user is null)
-            return NotFound();
-
-        _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var deleted = await _userService.DeleteCurrentUserAsync(userId);
+        return deleted ? NoContent() : NotFound();
     }
 
-    private bool TryGetUserId(out Guid userId)
-    {
-        return Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
-    }
+    private bool TryGetUserId(out Guid userId) =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
 }

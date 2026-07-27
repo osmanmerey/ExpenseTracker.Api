@@ -1,9 +1,7 @@
-﻿using ExpenseTracker.Api.Data;
-using ExpenseTracker.Api.DTOs;
-using ExpenseTracker.Api.Models;
+﻿using ExpenseTracker.Api.DTOs;
+using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace ExpenseTracker.Api.Controllers;
@@ -13,11 +11,11 @@ namespace ExpenseTracker.Api.Controllers;
 [Authorize]
 public class ExpensesController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IExpenseService _expenseService;
 
-    public ExpensesController(AppDbContext context)
+    public ExpensesController(IExpenseService expenseService)
     {
-        _context = context;
+        _expenseService = expenseService;
     }
 
     [HttpGet]
@@ -26,12 +24,7 @@ public class ExpensesController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        return await _context.Expenses
-            .AsNoTracking()
-            .Where(e => e.UserId == userId)
-            .OrderByDescending(e => e.Date)
-            .Select(e => ToResponse(e))
-            .ToListAsync();
+        return Ok(await _expenseService.GetAllAsync(userId));
     }
 
     [HttpGet("{id:guid}")]
@@ -40,12 +33,7 @@ public class ExpensesController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var expense = await _context.Expenses
-            .AsNoTracking()
-            .Where(e => e.Id == id && e.UserId == userId)
-            .Select(e => ToResponse(e))
-            .FirstOrDefaultAsync();
-
+        var expense = await _expenseService.GetByIdAsync(id, userId);
         return expense is null ? NotFound() : Ok(expense);
     }
 
@@ -55,18 +43,8 @@ public class ExpensesController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var expense = new Expense
-        {
-            Title = request.Title.Trim(),
-            Amount = request.Amount,
-            Date = request.Date,
-            Category = request.Category.Trim(),
-            UserId = userId
-        };
-
-        _context.Expenses.Add(expense);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, ToResponse(expense));
+        var expense = await _expenseService.CreateAsync(userId, request);
+        return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, expense);
     }
 
     [HttpPut("{id:guid}")]
@@ -75,19 +53,8 @@ public class ExpensesController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var expense = await _context.Expenses
-            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
-
-        if (expense is null)
-            return NotFound();
-
-        expense.Title = request.Title.Trim();
-        expense.Amount = request.Amount;
-        expense.Date = request.Date;
-        expense.Category = request.Category.Trim();
-        await _context.SaveChangesAsync();
-
-        return NoContent();
+        var updated = await _expenseService.UpdateAsync(id, userId, request);
+        return updated ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id:guid}")]
@@ -96,31 +63,10 @@ public class ExpensesController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized();
 
-        var expense = await _context.Expenses
-            .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
-
-        if (expense is null)
-            return NotFound();
-
-        _context.Expenses.Remove(expense);
-        await _context.SaveChangesAsync();
-        return NoContent();
+        var deleted = await _expenseService.DeleteAsync(id, userId);
+        return deleted ? NoContent() : NotFound();
     }
 
-    private bool TryGetUserId(out Guid userId)
-    {
-        return Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
-    }
-
-    private static ExpenseResponseDto ToResponse(Expense expense)
-    {
-        return new ExpenseResponseDto
-        {
-            Id = expense.Id,
-            Title = expense.Title,
-            Amount = expense.Amount,
-            Date = expense.Date,
-            Category = expense.Category
-        };
-    }
+    private bool TryGetUserId(out Guid userId) =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
 }
