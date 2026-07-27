@@ -5,6 +5,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>042aa046-f4b3-4772-b54c-88a2b3d1e67f</UserSecretsId>
+
+    <!-- Semantic Versioning (https://semver.org). Bump this together with a
+         CHANGELOG.md entry and a matching "vX.Y.Z" git tag on every release. -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
 	<ItemGroup>

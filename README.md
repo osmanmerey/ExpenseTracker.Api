@@ -75,6 +75,34 @@ Expense ve kullanıcı uç noktaları JWT gerektirir. Expense kayıtlarının `U
 değeri token'daki kullanıcı kimliğinden sunucu tarafından atanır; istemci başka
 bir kullanıcının kayıtlarını okuyamaz veya değiştiremez.
 
+## Versiyonlama
+
+Proje [Semantic Versioning](https://semver.org/lang/tr/) (`MAJOR.MINOR.PATCH`)
+kullanır ve tek bir `master` dalı üzerinde ilerler (trunk-based); sürümler
+branch ile değil, git **tag**'leri ve GitHub **Release**'leri ile işaretlenir.
+
+- **MAJOR** — geriye uyumsuz (breaking) API değişikliği (örn. bir endpoint'in
+  kaldırılması/imzasının değişmesi).
+- **MINOR** — geriye uyumlu yeni özellik (örn. yeni bir endpoint).
+- **PATCH** — geriye uyumlu hata düzeltmesi/iç refactor.
+
+Yeni bir sürüm yayımlamak için:
+
+```powershell
+# 1. ExpenseTracker.Api/ExpenseTracker.Api.csproj içindeki <Version> değerini güncelleyin
+# 2. CHANGELOG.md'ye yeni sürüm için bir bölüm ekleyin (Unreleased'i taşıyın)
+git add -A
+git commit -m "chore(release): vX.Y.Z"
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin master --tags
+```
+
+Ardından GitHub'da **Releases → Draft a new release** ile bu tag'i seçip
+`CHANGELOG.md`'deki ilgili bölümü açıklama olarak ekleyerek bir Release
+yayımlayabilirsiniz.
+
+Mevcut sürümler için bkz. [`CHANGELOG.md`](./CHANGELOG.md).
+
 ## Postman
 
 `postman/ExpenseTracker.postman_collection.json` koleksiyonunu Postman'e import
