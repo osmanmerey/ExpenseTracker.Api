@@ -29,6 +29,12 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
             "test-signing-key-that-is-at-least-64-bytes-long-for-hmac-sha512-1234567890");
         Environment.SetEnvironmentVariable("Jwt__Issuer", "ExpenseTracker.Api");
         Environment.SetEnvironmentVariable("Jwt__Audience", "ExpenseTracker.Client");
+
+        // The production default (5 requests/60s per IP) exists to slow down brute-force
+        // login/register attempts. Every test in this run shares the same loopback IP via
+        // TestServer, so it must be raised well above the number of auth calls any single
+        // test class makes, or unrelated tests would start failing with 429 Too Many Requests.
+        Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", "1000");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
