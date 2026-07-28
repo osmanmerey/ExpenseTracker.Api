@@ -14,7 +14,4 @@ public static class ConfigurationKeys
     public const string DefaultConnectionName = "DefaultConnection";
 
     public const string CorsAllowedOrigins = "Cors:AllowedOrigins";
-
-    public const string AuthRateLimitPermitLimit = "RateLimiting:AuthPermitLimit";
-    public const string AuthRateLimitWindowSeconds = "RateLimiting:AuthWindowSeconds";
 }

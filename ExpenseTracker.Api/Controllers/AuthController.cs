@@ -2,13 +2,11 @@
 using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 
 namespace ExpenseTracker.Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[EnableRateLimiting(RateLimitPolicies.Auth)]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

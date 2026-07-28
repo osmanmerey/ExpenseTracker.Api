@@ -14,12 +14,4 @@ public static class SecurityConstants
 
     /// <summary>Allowed clock drift when validating a token's expiry.</summary>
     public static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(1);
-
-    /// <summary>
-    /// Default brute-force protection for /api/auth endpoints, used when
-    /// <see cref="ConfigurationKeys.AuthRateLimitPermitLimit"/> is not configured.
-    /// </summary>
-    public const int DefaultAuthRateLimitPermitLimit = 5;
-
-    public const int DefaultAuthRateLimitWindowSeconds = 60;
 }
