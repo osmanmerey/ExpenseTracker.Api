@@ -13,22 +13,28 @@ public class UserRepository : IUserRepository
         _context = context;
     }
 
-    public Task<User?> GetByIdAsync(Guid id) =>
-        _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+    public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
-    public Task<User?> GetByIdNoTrackingAsync(Guid id) =>
-        _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+    public Task<User?> GetByIdNoTrackingAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
-    public Task<User?> GetByEmailAsync(string normalizedEmail) =>
-        _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+    public Task<User?> GetByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default) =>
+        _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
 
-    public Task<bool> EmailExistsAsync(string normalizedEmail, Guid? excludingUserId = null) =>
-        _context.Users.AnyAsync(u =>
-            u.Email == normalizedEmail && (excludingUserId == null || u.Id != excludingUserId));
+    public Task<bool> EmailExistsAsync(
+        string normalizedEmail,
+        Guid? excludingUserId = null,
+        CancellationToken cancellationToken = default) =>
+        _context.Users.AnyAsync(
+            u => u.Email == normalizedEmail && (excludingUserId == null || u.Id != excludingUserId),
+            cancellationToken);
 
-    public async Task AddAsync(User user) => await _context.Users.AddAsync(user);
+    public async Task AddAsync(User user, CancellationToken cancellationToken = default) =>
+        await _context.Users.AddAsync(user, cancellationToken);
 
     public void Remove(User user) => _context.Users.Remove(user);
 
-    public Task SaveChangesAsync() => _context.SaveChangesAsync();
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        _context.SaveChangesAsync(cancellationToken);
 }

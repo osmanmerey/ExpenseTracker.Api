@@ -8,6 +8,11 @@ public static class ErrorMessages
 {
     public const string EmailAlreadyExists = "Bu e-posta adresi zaten kullanılıyor.";
     public const string InvalidCredentials = "E-posta veya şifre hatalı.";
+    public const string Unauthorized = "Oturum gerekli veya geçersiz. Lütfen tekrar giriş yapın.";
+    public const string NotFound = "Kayıt bulunamadı.";
+    public const string TooManyRequests = "Çok fazla deneme yaptınız. Lütfen bir süre sonra tekrar deneyin.";
+    public const string ServiceUnavailable = "Servis geçici olarak kullanılamıyor. Lütfen sonra tekrar deneyin.";
+    public const string UnexpectedError = "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.";
 
     public const string JwtKeyMissing =
         "Jwt:Key must be configured and contain at least 64 characters.";

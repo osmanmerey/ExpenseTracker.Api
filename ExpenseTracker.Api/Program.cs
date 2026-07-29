@@ -1,14 +1,17 @@
-using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.Data;
+using ExpenseTracker.Api.Errors;
 using ExpenseTracker.Api.Repositories;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
-using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,15 +19,12 @@ var jwtKey = builder.Configuration[ConfigurationKeys.JwtKey];
 var jwtIssuer = builder.Configuration[ConfigurationKeys.JwtIssuer];
 var jwtAudience = builder.Configuration[ConfigurationKeys.JwtAudience];
 
-// HmacSha512 (used to sign tokens) requires a key of at least 512 bits (64 bytes).
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < SecurityConstants.MinimumJwtKeyLengthInChars)
     throw new InvalidOperationException(ErrorMessages.JwtKeyMissing);
 
 if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
     throw new InvalidOperationException(ErrorMessages.JwtIssuerOrAudienceMissing);
 
-// Database provider is selectable via configuration ("Database:Provider").
-// Use "InMemory" to run without an external PostgreSQL instance; defaults to "Postgres".
 var databaseProvider = builder.Configuration[ConfigurationKeys.DatabaseProvider] ?? DatabaseProviders.Postgres;
 
 if (string.Equals(databaseProvider, DatabaseProviders.InMemory, StringComparison.OrdinalIgnoreCase))
@@ -38,17 +38,24 @@ else
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException(ErrorMessages.ConnectionStringMissing);
 
-    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString, npgsql => npgsql.CommandTimeout(30)));
 }
 
-// Repository layer: persistence-only, talks directly to AppDbContext.
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
-
-// Service layer: business rules, talks only to repositories (never to AppDbContext directly).
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
+
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+    };
+});
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -92,12 +99,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ClockSkew = SecurityConstants.ClockSkew
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/problem+json";
+
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status401Unauthorized,
+                    Title = "Unauthorized",
+                    Detail = ErrorMessages.Unauthorized,
+                    Type = "https://httpstatuses.com/401",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                };
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                }));
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
-// Brute-force protection for /api/auth/* (register/login): fixed-window limiter,
-// scoped per client IP. Limits are configurable so tests can raise them to avoid
-// flakiness while production keeps a strict default (see SecurityConstants).
 var authPermitLimit = builder.Configuration.GetValue(
     ConfigurationKeys.AuthRateLimitPermitLimit, SecurityConstants.DefaultAuthRateLimitPermitLimit);
 var authWindowSeconds = builder.Configuration.GetValue(
@@ -106,6 +134,32 @@ var authWindowSeconds = builder.Configuration.GetValue(
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var http = context.HttpContext;
+        http.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        http.Response.ContentType = "application/problem+json";
+        http.Response.Headers.RetryAfter = authWindowSeconds.ToString();
+
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Too Many Requests",
+            Detail = ErrorMessages.TooManyRequests,
+            Type = "https://httpstatuses.com/429",
+            Extensions =
+            {
+                ["traceId"] = http.TraceIdentifier,
+                ["retryAfterSeconds"] = authWindowSeconds
+            }
+        };
+
+        await http.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        }), cancellationToken);
+    };
 
     options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -124,7 +178,15 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        if (allowedOrigins.Length > 0)
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(origin =>
+                    Uri.TryCreate(origin, UriKind.Absolute, out var originUri) &&
+                    originUri.Host == "localhost")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+        else if (allowedOrigins.Length > 0)
         {
             policy.WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
@@ -132,6 +194,9 @@ builder.Services.AddCors(options =>
         }
     });
 });
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database");
 
 var app = builder.Build();
 
@@ -141,14 +206,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseMiddleware<ClientErrorLoggingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
 
-// Exposed so the integration test project (WebApplicationFactory) can bootstrap the host.
 public partial class Program { }
