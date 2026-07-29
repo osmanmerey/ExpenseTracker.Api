@@ -1,4 +1,6 @@
-﻿using ExpenseTracker.Api.DTOs;
+﻿using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.DTOs;
+using ExpenseTracker.Api.Errors;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,52 +21,58 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetExpenses()
+    public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetExpenses(CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        return Ok(await _expenseService.GetAllAsync(userId));
+        return Ok(await _expenseService.GetAllAsync(userId, cancellationToken));
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ExpenseResponseDto>> GetExpense(Guid id)
+    public async Task<ActionResult<ExpenseResponseDto>> GetExpense(Guid id, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var expense = await _expenseService.GetByIdAsync(id, userId);
-        return expense is null ? NotFound() : Ok(expense);
+        var expense = await _expenseService.GetByIdAsync(id, userId, cancellationToken);
+        return expense is null
+            ? this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound)
+            : Ok(expense);
     }
 
     [HttpPost]
-    public async Task<ActionResult<ExpenseResponseDto>> PostExpense(ExpenseCreateDto request)
+    public async Task<ActionResult<ExpenseResponseDto>> PostExpense(ExpenseCreateDto request, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var expense = await _expenseService.CreateAsync(userId, request);
+        var expense = await _expenseService.CreateAsync(userId, request, cancellationToken);
         return CreatedAtAction(nameof(GetExpense), new { id = expense.Id }, expense);
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> PutExpense(Guid id, ExpenseUpdateDto request)
+    public async Task<IActionResult> PutExpense(Guid id, ExpenseUpdateDto request, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var updated = await _expenseService.UpdateAsync(id, userId, request);
-        return updated ? NoContent() : NotFound();
+        var updated = await _expenseService.UpdateAsync(id, userId, request, cancellationToken);
+        return updated
+            ? NoContent()
+            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteExpense(Guid id)
+    public async Task<IActionResult> DeleteExpense(Guid id, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var deleted = await _expenseService.DeleteAsync(id, userId);
-        return deleted ? NoContent() : NotFound();
+        var deleted = await _expenseService.DeleteAsync(id, userId, cancellationToken);
+        return deleted
+            ? NoContent()
+            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
 
     private bool TryGetUserId(out Guid userId) =>

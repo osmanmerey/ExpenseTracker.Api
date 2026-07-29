@@ -15,6 +15,7 @@ güvenlik önlemlerini ve test sonuçlarını özetler.
 8. [Test Sonuçları](#8-test-sonuçları)
 9. [GitHub Bağlantıları](#9-github-bağlantıları)
 10. [Kalan Riskler](#10-kalan-riskler)
+11. [Uçtan Uca Hata Yönetimi — Önce/Sonra](#11-uçtan-uca-hata-yönetimi--öncesonra)
 
 ---
 
@@ -334,3 +335,62 @@ Test edilen senaryolar:
    birebir kapsanmaz.
 7. **Token süresi:** JWT 1 gün geçerlidir; yenileme (refresh token) akışı yoktur.
    Süre dolunca istemci yeniden giriş yapmalıdır.
+
+---
+
+## 11. Uçtan Uca Hata Yönetimi — Önce/Sonra (29.07.2026)
+
+**Adım 5.** “Önce” kolonları = Adım 1 envanteri (`docs/hata-envanteri.md` / `docs/hata-envanteri-yeni.md`).  
+Sözleşme: `docs/hata-sozlesmesi.md` (RFC 7807 Problem Details, `traceId`, 4xx / 503 / 500).
+
+### 11.1 Önce / sonra tablosu
+
+| # | Senaryo | Önce (API) | Sonra (API) | Önce (Flutter) | Sonra (Flutter) |
+|---|---------|------------|-------------|----------------|-----------------|
+| 1–2 | Geçersiz / eksik veri | Login: **400** Problem Details (`errors`, `traceId`). Harcama 0/negatif: **400** (`errors.Amount`). | Aynı şema korunur; 4xx → `LogWarning` + `TraceId` (body/şifre yok). | Form yalnızca boş tutarı kesiyor; 0/negatif “başarılı” + listede kalıyordu. | Client min **0,01**; API 400 → `AppException` / user-friendly mesaj; başarı yalnızca gerçek kayıt sonrası. |
+| 3–4 | Yanlış e-posta / şifre | **401** düz metin (`E-posta veya şifre hatalı.`). | **401** Problem Details (`detail` + `traceId`). | API mesajı kullanılmıyor; genel “Hata / giriş başarısız”. | API `detail` (veya eşdeğer user-friendly metin) snackbar’da. |
+| 5–6 | Üst üste çok hatalı giriş | **429**, **boş body**, `Retry-After` yok. | **429** Problem Details + `Retry-After` / `retryAfterSeconds` + `traceId`. | 429 ≡ 401 genel mesaj. | Ayrı mesaj: “Çok fazla deneme…” (+ saniye bilgisi mümkünse). |
+| 7–8 | Token yok / geçersiz / süresi dolmuş | **401**, **boş body**; `WWW-Authenticate`. | **401** Problem Details (`detail` + `traceId`). | Cache’e düşme / belirsiz hata; “oturum bitti” net değil. | `unauthorized` → anlaşılır oturum mesajı; liste `error`/`stale` (sessiz başarı yok). |
+| 9–10 | Var olmayan kayıt | **404** Problem Details; `detail` zayıf/yok. | **404** Problem Details + anlaşılır `detail` (“Kayıt bulunamadı”) + `traceId`. | Genel catch; net “bulunamadı” yok. | `notFound` → “Kayıt bulunamadı.” |
+| 11–12 | Başka kullanıcının kaydı | **404** (403 değil — varlık sızdırılmaz). | Aynı bilinçli **404** + user-friendly `detail`; log’da takip. | Normal UI yolu yok. | API 404 ile uyumlu “bulunamadı”. |
+| 13–14 | Aynı e-posta ile 2. kayıt | **409** düz metin. | **409** Problem Details (`detail` + `traceId`). | 409 metni kullanılmıyor; genel kayıt hatası. | Conflict → “Bu e-posta zaten kullanılıyor.” (API `detail` tercih). |
+| 15–16 | Veritabanı erişilemez | **500** + Developer Exception Page; **Npgsql + stack sızıyor**. | **503** Problem Details; stack/exception **yanıtta yok**; `LogError` + `traceId`. Bug ile karışmaz. | Cache / belirsiz; eski liste riski. | Sunucu/kesinti mesajı + retry; ham 5xx yok; cache varsa **`stale`**. |
+| 17–18 | API kapalı (açıkken / ilk açılış) | — (istemci senaryosu); `/health` yoktu. | `/health` (+ EF DbContext check); istekler CT ile iptal edilebilir. | Hive cache **sessiz**; eski liste, uyarı yok. | **`ViewState.stale`** + banner (“güncel olmayabilir”) + **Tekrar dene**. |
+| 19 | İnternet yok / yavaş | — | Npgsql `CommandTimeout(30)`; istek `CancellationToken` → EF. | Timeout belirsiz; sessiz cache riski. | `timeout` / `noConnection` ayrı mesaj + retry; cache varsa stale. |
+| 20–21 | Beklenmeyen sunucu istisnası | Handler yok; Dev’de stack istemciye gidebiliyor (**500** ile DB down karışıyordu). | **500** Problem Details (genel `detail`); stack yalnız log (`LogError` + `traceId`); **≠ 503**. | Genel mesaj veya sessiz cache. | `error` + “Bir sorun oluştu…” + retry; ham exception UI’da yok. |
+
+### 11.2 Kabul kriterleri — durum
+
+| # | Kabul kriteri | Durum | Kanıt / not |
+|---|---------------|-------|-------------|
+| 1 | Hata envanteri dolu; her satırda uygulama (API/Flutter) net | **Evet** | `docs/hata-envanteri*.md` — 21 satır, `#` + Uygulama kolonu |
+| 2 | Hata yanıtı sözleşmesi yazılı; iki repo uyuyor | **Evet** | `docs/hata-sozlesmesi*.md`; API `ProblemResult` / `IExceptionHandler`; Flutter `ProblemDetails` → `AppException` |
+| 3 | Hiçbir senaryoda boş hata yanıtı yok | **Evet** | 401/429 challenge & rate-limit body’li; controller 4xx `detail`/`errors` |
+| 4 | DB erişilemez ≠ kod bug’ı (aynı status değil) | **Evet** | 503 vs 500 (`GlobalExceptionHandler` + diagnostic testler) |
+| 5 | Canlı yanıtlarda exception / stack sızmıyor | **Evet** | Handler stack’i body’ye yazmaz; test: boom gövdesinde “Intentional…” yok |
+| 6 | Kullanıcı mesajları anlaşılır; ham istisna yok | **Evet** | Flutter `userMessage`; 5xx’te genel metin, API `detail` 4xx’te |
+| 7 | API kapalıyken sessiz eski liste yok | **Evet** | `ViewState.stale` + banner + retry (controller test) |
+| 8 | Kullanıcıdaki bilgiyle log’a takip (`traceId`) | **Evet** | Yanıt `traceId` = `TraceIdentifier`; 5xx Error / 4xx Warning log satırında aynı id |
+| 9 | Beklenen 4xx ile beklenmeyen 5xx aynı log seviyesinde değil | **Evet** | `ClientErrorLoggingMiddleware` → **Warning**; handler → **Error** |
+| 10 | Log / çıktıda parola, hash, token yok | **Evet** | 4xx middleware body loglamaz; token log kuralı korunur |
+| 11 | Senaryolar için otomatik test; `dotnet test` / `flutter test` yeşil | **Kısmen / pratikte evet** | API **18/18** yeşil (validation, 401, 409, 429, 500, 503, health, izolasyon…). Flutter (`expense_tracker`) **23/23** yeşil (stale, timeout, server, Problem Details, auth detail…). Her envanter satırına **ayrı** UI E2E testi yok; kritik yollar birim/entegrasyon ile kapalı. |
+
+### 11.3 Test komutları (son doğrulama)
+
+```powershell
+# API
+dotnet test --nologo
+# → Başarılı: 18
+
+# Flutter (hata yönetimi değişikliklerinin bulunduğu kopya)
+cd <expense_tracker>
+flutter test
+# → All tests passed (23)
+```
+
+### 11.4 İlgili kod (özet)
+
+| Taraf | Ne |
+|-------|----|
+| API | `Errors/GlobalExceptionHandler`, `ControllerProblemExtensions`, `ClientErrorLoggingMiddleware`, JWT `OnChallenge`, rate-limit `OnRejected`, `/health`, CT → service → repo → EF |
+| Flutter | `problem_details.dart`, `AppException` / `AppErrorKind`, `ViewState.stale`, timeout, amount validation |

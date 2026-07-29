@@ -9,9 +9,9 @@ namespace ExpenseTracker.Api.Services;
 /// </summary>
 public interface IUserService
 {
-    Task<UserResponseDto?> GetCurrentUserAsync(Guid userId);
+    Task<UserResponseDto?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    Task<UserUpdateOutcome> UpdateCurrentUserAsync(Guid userId, UserUpdateDto request);
+    Task<UserUpdateOutcome> UpdateCurrentUserAsync(Guid userId, UserUpdateDto request, CancellationToken cancellationToken = default);
 
-    Task<bool> DeleteCurrentUserAsync(Guid userId);
+    Task<bool> DeleteCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }

@@ -9,18 +9,18 @@ namespace ExpenseTracker.Api.Repositories;
 public interface IUserRepository
 {
     /// <summary>Tracked read, suitable for update/delete operations.</summary>
-    Task<User?> GetByIdAsync(Guid id);
+    Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>Untracked read, suitable for read-only responses.</summary>
-    Task<User?> GetByIdNoTrackingAsync(Guid id);
+    Task<User?> GetByIdNoTrackingAsync(Guid id, CancellationToken cancellationToken = default);
 
-    Task<User?> GetByEmailAsync(string normalizedEmail);
+    Task<User?> GetByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
 
-    Task<bool> EmailExistsAsync(string normalizedEmail, Guid? excludingUserId = null);
+    Task<bool> EmailExistsAsync(string normalizedEmail, Guid? excludingUserId = null, CancellationToken cancellationToken = default);
 
-    Task AddAsync(User user);
+    Task AddAsync(User user, CancellationToken cancellationToken = default);
 
     void Remove(User user);
 
-    Task SaveChangesAsync();
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

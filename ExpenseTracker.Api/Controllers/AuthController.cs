@@ -1,5 +1,6 @@
 ﻿using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
+using ExpenseTracker.Api.Errors;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -19,21 +20,27 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register(UserRegisterDto request)
+    public async Task<IActionResult> Register(UserRegisterDto request, CancellationToken cancellationToken)
     {
-        var result = await _authService.RegisterAsync(request);
+        var result = await _authService.RegisterAsync(request, cancellationToken);
         if (result.EmailAlreadyExists)
-            return Conflict(ErrorMessages.EmailAlreadyExists);
+            return this.ProblemResult(
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                ErrorMessages.EmailAlreadyExists);
 
         return StatusCode(StatusCodes.Status201Created, result.User);
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(UserLoginDto request)
+    public async Task<IActionResult> Login(UserLoginDto request, CancellationToken cancellationToken)
     {
-        var result = await _authService.LoginAsync(request);
+        var result = await _authService.LoginAsync(request, cancellationToken);
         if (!result.Succeeded)
-            return Unauthorized(ErrorMessages.InvalidCredentials);
+            return this.ProblemResult(
+                StatusCodes.Status401Unauthorized,
+                "Unauthorized",
+                ErrorMessages.InvalidCredentials);
 
         return Ok(new { token = result.Token, user = result.User });
     }

@@ -9,13 +9,13 @@ namespace ExpenseTracker.Api.Services;
 /// </summary>
 public interface IExpenseService
 {
-    Task<IEnumerable<ExpenseResponseDto>> GetAllAsync(Guid userId);
+    Task<IEnumerable<ExpenseResponseDto>> GetAllAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    Task<ExpenseResponseDto?> GetByIdAsync(Guid id, Guid userId);
+    Task<ExpenseResponseDto?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
 
-    Task<ExpenseResponseDto> CreateAsync(Guid userId, ExpenseCreateDto request);
+    Task<ExpenseResponseDto> CreateAsync(Guid userId, ExpenseCreateDto request, CancellationToken cancellationToken = default);
 
-    Task<bool> UpdateAsync(Guid id, Guid userId, ExpenseUpdateDto request);
+    Task<bool> UpdateAsync(Guid id, Guid userId, ExpenseUpdateDto request, CancellationToken cancellationToken = default);
 
-    Task<bool> DeleteAsync(Guid id, Guid userId);
+    Task<bool> DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
 }

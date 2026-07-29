@@ -21,10 +21,10 @@ public class AuthService : IAuthService
         _configuration = configuration;
     }
 
-    public async Task<RegisterResult> RegisterAsync(UserRegisterDto request)
+    public async Task<RegisterResult> RegisterAsync(UserRegisterDto request, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        if (await _userRepository.EmailExistsAsync(normalizedEmail))
+        if (await _userRepository.EmailExistsAsync(normalizedEmail, cancellationToken: cancellationToken))
             return RegisterResult.EmailConflict();
 
         var user = new User
@@ -34,16 +34,16 @@ public class AuthService : IAuthService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
         };
 
-        await _userRepository.AddAsync(user);
-        await _userRepository.SaveChangesAsync();
+        await _userRepository.AddAsync(user, cancellationToken);
+        await _userRepository.SaveChangesAsync(cancellationToken);
 
         return RegisterResult.Success(ToResponse(user));
     }
 
-    public async Task<LoginResult> LoginAsync(UserLoginDto request)
+    public async Task<LoginResult> LoginAsync(UserLoginDto request, CancellationToken cancellationToken = default)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _userRepository.GetByEmailAsync(normalizedEmail);
+        var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return LoginResult.InvalidCredentials();
 

@@ -10,7 +10,7 @@ namespace ExpenseTracker.Api.Services;
 /// </summary>
 public interface IAuthService
 {
-    Task<RegisterResult> RegisterAsync(UserRegisterDto request);
+    Task<RegisterResult> RegisterAsync(UserRegisterDto request, CancellationToken cancellationToken = default);
 
-    Task<LoginResult> LoginAsync(UserLoginDto request);
+    Task<LoginResult> LoginAsync(UserLoginDto request, CancellationToken cancellationToken = default);
 }

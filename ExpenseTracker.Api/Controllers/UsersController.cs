@@ -1,5 +1,6 @@
 ﻿using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
+using ExpenseTracker.Api.Errors;
 using ExpenseTracker.Api.Services;
 using ExpenseTracker.Api.Services.Results;
 using Microsoft.AspNetCore.Authorization;
@@ -21,38 +22,44 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("me")]
-    public async Task<ActionResult<UserResponseDto>> GetCurrentUser()
+    public async Task<ActionResult<UserResponseDto>> GetCurrentUser(CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var user = await _userService.GetCurrentUserAsync(userId);
-        return user is null ? NotFound() : Ok(user);
+        var user = await _userService.GetCurrentUserAsync(userId, cancellationToken);
+        return user is null
+            ? this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound)
+            : Ok(user);
     }
 
     [HttpPut("me")]
-    public async Task<IActionResult> UpdateCurrentUser(UserUpdateDto request)
+    public async Task<IActionResult> UpdateCurrentUser(UserUpdateDto request, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var outcome = await _userService.UpdateCurrentUserAsync(userId, request);
+        var outcome = await _userService.UpdateCurrentUserAsync(userId, request, cancellationToken);
         return outcome switch
         {
-            UserUpdateOutcome.EmailAlreadyExists => Conflict(ErrorMessages.EmailAlreadyExists),
-            UserUpdateOutcome.NotFound => NotFound(),
+            UserUpdateOutcome.EmailAlreadyExists => this.ProblemResult(
+                StatusCodes.Status409Conflict, "Conflict", ErrorMessages.EmailAlreadyExists),
+            UserUpdateOutcome.NotFound => this.ProblemResult(
+                StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound),
             _ => NoContent()
         };
     }
 
     [HttpDelete("me")]
-    public async Task<IActionResult> DeleteCurrentUser()
+    public async Task<IActionResult> DeleteCurrentUser(CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
-            return Unauthorized();
+            return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
-        var deleted = await _userService.DeleteCurrentUserAsync(userId);
-        return deleted ? NoContent() : NotFound();
+        var deleted = await _userService.DeleteCurrentUserAsync(userId, cancellationToken);
+        return deleted
+            ? NoContent()
+            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
 
     private bool TryGetUserId(out Guid userId) =>
