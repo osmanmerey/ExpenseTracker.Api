@@ -201,7 +201,8 @@ uygulamalar eklendi.
 - **Remote / local ayrımı:** Ağ iletişimi `ApiClient` + repository'lerde; Hive
   önbelleği `ApiExpenseRepository.getExpenses` içinde eski Firebase repo ile
   **birebir aynı** kutu adı (`expensesCacheBox`) ve anahtar biçimi
-  (`cached_expenses_$userId`) ile korundu. Ağ hatasında önbelleğe düşülür.
+  (`cached_expenses_$userId`) ile korundu. Ağ hatasında cache varsa liste
+  **`stale`** olarak gösterilir (sessiz “başarı” yok; banner + tekrar dene).
 - **Token depolama:** Sadece `flutter_secure_storage`. Hive/SharedPreferences'ta
   token tutulmaz. Senkron `getCurrentUserId()` sözleşmesi için bellek içi kopya
   başlangıçta `init()` ile doldurulur.
@@ -274,42 +275,40 @@ arayüz koduna dokunulmadan yalnızca veri kaynağı (Firebase → API) değişt
 
 ### Backend — `dotnet test` (xUnit + WebApplicationFactory + EF Core InMemory)
 
-**Sonuç: 10/10 başarılı.**
+**Sonuç: 18/18 başarılı** (eski CRUD/auth testleri + hata yönetimi sözleşmesi testleri).
 
-Test edilen senaryolar:
+Önceki temel senaryolar (register/login/CRUD/izolasyon) duruyor. Hata yönetimi ile eklenenler:
 
 | Test | Doğrulanan |
 |------|------------|
-| `Register_ReturnsCreated_AndDoesNotLeakPasswordHash` | 201 + yanıtta `passwordHash` yok |
-| `Register_WithDuplicateEmail_ReturnsConflict` | 409 |
-| `Register_WithInvalidInput_ReturnsBadRequest` | 400 |
-| `Login_WithValidCredentials_ReturnsToken` | 200 + token + userId |
-| `Login_WithWrongPassword_ReturnsUnauthorized` | 401 |
-| `GetExpenses_WithoutToken_ReturnsUnauthorized` | 401 (yetkisiz erişim) |
-| `PostExpense_WithoutToken_ReturnsUnauthorized` | 401 |
-| `CreateExpense_WithInvalidInput_ReturnsBadRequest` | 400 |
-| `ExpenseCrud_FullFlow_Works` | create/list/get/update/delete tam akış |
-| `UserCannotAccessAnotherUsersExpense` | **Kullanıcı izolasyonu**: B, A'nın kaydını listeleyemez/okuyamaz/güncelleyemez/silemez (404); A'nınki değişmeden kalır |
+| `ValidationError_ReturnsProblemDetailsWithErrorsAndTraceId` | 400 + `errors` + `traceId` |
+| `WrongPassword_Returns401ProblemDetails` | 401 Problem Details |
+| `MissingToken_Returns401ProblemDetails` | 401 Problem Details (boş body yok) |
+| `DuplicateEmail_Returns409ProblemDetails` | 409 Problem Details |
+| `UnhandledException_Returns500ProblemDetails_WithoutStack` | 500; stack yanıtta yok |
+| `DatabaseUnavailableStyleException_Returns503ProblemDetails` | 503 ≠ 500 |
+| `AuthRateLimit_Returns429ProblemDetailsWithRetryAfter` | 429 + `Retry-After` |
+| `Health_ReturnsSuccess` | `/health` |
 
-### Flutter — `flutter analyze` + `flutter test`
+### Flutter — `flutter test`
 
-- **`flutter analyze`**: Eklenen/değiştirilen dosyalarda **0 sorun**. Kalan 3
-  `info` uyarısı, dokunulmayan mevcut dosyalardandır
-  (`firebase_expense_repository.dart`, `expense_controller.dart`,
-  `expense_form_page.dart`).
-- **`flutter test`**: **16/16 başarılı.**
-  - `expense_dto_test.dart`: API ↔ entity eşleme (title/description, ISO tarih).
-  - `api_auth_repository_test.dart`: login/register/logout/getCurrentUserId,
-    token saklama, hatada token saklanmaması.
-  - `api_expense_repository_test.dart`: CRUD istek yolları, `getExpenses` başarı
-    ve **Hive önbelleğine düşme** senaryoları.
+**Sonuç: 23/23 başarılı** (`expense_tracker`, hata yönetimi branch’i).
+
+- Problem Details parse / auth `detail`
+- API kapalı + cache → **`stale`** (sessiz başarı yok)
+- Timeout / sunucu hatası → `error` state
+- Mevcut API repo / DTO testleri
+
+Ayrıntılı önce/sonra ve kabul kriterleri: **§11**.
 
 ---
 
 ## 9. GitHub Bağlantıları
 
-- **Backend (ASP.NET Core API):** https://github.com/OsmanSelimMerey/ExpenseTracker.Api
-- **Flutter uygulaması:** https://github.com/OsmanSelimMerey/expense_tracker
+- **Backend (ASP.NET Core API):** https://github.com/osmanmerey/ExpenseTracker.Api  
+  - Hata yönetimi PR: https://github.com/osmanmerey/ExpenseTracker.Api/pull/3
+- **Flutter uygulaması:** https://github.com/osmanmerey/expense_tracker  
+  - Hata yönetimi PR: https://github.com/osmanmerey/expense_tracker/pull/1
 
 ---
 
