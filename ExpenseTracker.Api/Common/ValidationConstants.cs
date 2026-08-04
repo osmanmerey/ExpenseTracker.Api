@@ -16,4 +16,11 @@ public static class ValidationConstants
     public const int ExpenseCategoryMaxLength = 100;
 
     public const double MinExpenseAmount = 0.01;
+
+    public const int BudgetCategoryMaxLength = 100;
+    public const double MinBudgetAmount = 0.01;
+    public const int MinBudgetMonth = 1;
+    public const int MaxBudgetMonth = 12;
+    public const int MinBudgetYear = 2000;
+    public const int MaxBudgetYear = 2100;
 }

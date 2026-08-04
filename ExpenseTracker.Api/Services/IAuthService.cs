@@ -13,4 +13,13 @@ public interface IAuthService
     Task<RegisterResult> RegisterAsync(UserRegisterDto request, CancellationToken cancellationToken = default);
 
     Task<LoginResult> LoginAsync(UserLoginDto request, CancellationToken cancellationToken = default);
+
+    Task<ForgotPasswordResult> ForgotPasswordAsync(
+        ForgotPasswordDto request,
+        bool includeResetTokenInResponse,
+        CancellationToken cancellationToken = default);
+
+    Task<ResetPasswordResult> ResetPasswordAsync(
+        ResetPasswordDto request,
+        CancellationToken cancellationToken = default);
 }

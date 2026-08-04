@@ -31,8 +31,9 @@ public class ExpenseService : IExpenseService
         {
             Title = request.Title.Trim(),
             Amount = request.Amount,
-            Date = request.Date,
+            Date = NormalizeExpenseDate(request.Date),
             Category = request.Category.Trim(),
+            Kind = request.Kind,
             UserId = userId
         };
 
@@ -50,8 +51,9 @@ public class ExpenseService : IExpenseService
 
         expense.Title = request.Title.Trim();
         expense.Amount = request.Amount;
-        expense.Date = request.Date;
+        expense.Date = NormalizeExpenseDate(request.Date);
         expense.Category = request.Category.Trim();
+        expense.Kind = request.Kind;
         await _expenseRepository.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -68,12 +70,20 @@ public class ExpenseService : IExpenseService
         return true;
     }
 
+    /// <summary>
+    /// Store calendar Y/M/D at UTC noon so monthly budgets match the day
+    /// the client intended (avoids timezone day/month shifts).
+    /// </summary>
+    private static DateTime NormalizeExpenseDate(DateTime date) =>
+        new(date.Year, date.Month, date.Day, 12, 0, 0, DateTimeKind.Utc);
+
     private static ExpenseResponseDto ToResponse(Expense expense) => new()
     {
         Id = expense.Id,
         Title = expense.Title,
         Amount = expense.Amount,
         Date = expense.Date,
-        Category = expense.Category
+        Category = expense.Category,
+        Kind = expense.Kind
     };
 }

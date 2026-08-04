@@ -21,4 +21,23 @@ public class ExpenseResponse
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }
     public string Category { get; set; } = string.Empty;
+    public string Kind { get; set; } = "Expense";
+}
+
+public class BudgetResponse
+{
+    public Guid Id { get; set; }
+    public string Category { get; set; } = string.Empty;
+    public decimal LimitAmount { get; set; }
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public decimal SpentAmount { get; set; }
+    public decimal RemainingAmount { get; set; }
+    public bool IsOverBudget { get; set; }
+}
+
+public class ForgotPasswordResponse
+{
+    public string Message { get; set; } = string.Empty;
+    public string? ResetToken { get; set; }
 }

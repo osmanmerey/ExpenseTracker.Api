@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.Models;
 
 namespace ExpenseTracker.Api.DTOs;
 
@@ -15,4 +16,6 @@ public class ExpenseUpdateDto
 
     [Required, StringLength(ValidationConstants.ExpenseCategoryMaxLength)]
     public string Category { get; set; } = string.Empty;
+
+    public TransactionKind Kind { get; set; } = TransactionKind.Expense;
 }

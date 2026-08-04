@@ -8,6 +8,9 @@ public static class ErrorMessages
 {
     public const string EmailAlreadyExists = "Bu e-posta adresi zaten kullanılıyor.";
     public const string InvalidCredentials = "E-posta veya şifre hatalı.";
+    public const string InvalidResetToken = "Sıfırlama kodu geçersiz veya süresi dolmuş.";
+    public const string ForgotPasswordAccepted =
+        "E-posta kayıtlıysa şifre sıfırlama talimatları gönderildi.";
     public const string Unauthorized = "Oturum gerekli veya geçersiz. Lütfen tekrar giriş yapın.";
     public const string NotFound = "Kayıt bulunamadı.";
     public const string TooManyRequests = "Çok fazla deneme yaptınız. Lütfen bir süre sonra tekrar deneyin.";

@@ -7,6 +7,7 @@ public class Expense
     public decimal Amount { get; set; }
     public DateTime Date { get; set; }
     public string Category { get; set; } = string.Empty;
+    public TransactionKind Kind { get; set; } = TransactionKind.Expense;
 
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.Models;
 
 namespace ExpenseTracker.Api.DTOs;
 
@@ -15,4 +16,7 @@ public class ExpenseCreateDto
 
     [Required, StringLength(ValidationConstants.ExpenseCategoryMaxLength)]
     public string Category { get; set; } = string.Empty;
+
+    /// <summary>Defaults to Expense when omitted.</summary>
+    public TransactionKind Kind { get; set; } = TransactionKind.Expense;
 }
