@@ -1,3 +1,4 @@
+using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Models;
 using ExpenseTracker.Api.Repositories;
@@ -122,9 +123,11 @@ public class BudgetService : IBudgetService
 
         foreach (var expense in periodExpenses)
         {
-            total += expense.Amount;
+            // Convert to TRY so budgets match the Flutter UI (limits are TRY).
+            var amountTry = FixedCurrencyRates.ToTry(expense.Amount, expense.Title);
+            total += amountTry;
             var key = expense.Category.Trim();
-            byCategory[key] = byCategory.GetValueOrDefault(key) + expense.Amount;
+            byCategory[key] = byCategory.GetValueOrDefault(key) + amountTry;
         }
 
         byCategory[string.Empty] = total;

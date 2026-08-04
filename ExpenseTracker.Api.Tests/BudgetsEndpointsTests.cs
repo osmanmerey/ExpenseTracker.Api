@@ -127,6 +127,20 @@ public class BudgetsEndpointsTests : IClassFixture<ApiWebApplicationFactory>
         var delete = await client.DeleteAsync($"/api/budgets/{overall.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
+        // USD amount is converted with fixed rate (×47) into TRY spent.
+        await client.PostAsJsonAsync("/api/expenses", new
+        {
+            title = "[USD] Coffee",
+            amount = 10m,
+            date = new DateTime(year, month, 8, 12, 0, 0, DateTimeKind.Utc),
+            category = "Yemek",
+            kind = "Expense"
+        });
+        var afterFx = await client.GetFromJsonAsync<BudgetResponse>(
+            $"/api/budgets/{categoryBudget.Id}");
+        // Previous 100 TRY lunch + 10 USD × 47 = 570 TRY
+        Assert.Equal(570m, afterFx!.SpentAmount);
+
         var listAfter = await client.GetFromJsonAsync<List<BudgetResponse>>(
             $"/api/budgets?year={year}&month={month}");
         Assert.Single(listAfter!);
