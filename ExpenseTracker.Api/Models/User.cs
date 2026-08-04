@@ -9,4 +9,5 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
 
     public ICollection<Expense>? Expenses { get; set; }
+    public ICollection<Budget>? Budgets { get; set; }
 }

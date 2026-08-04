@@ -163,4 +163,27 @@ public class ExpensesEndpointsTests : IClassFixture<ApiWebApplicationFactory>
         var stillThere = await clientA.GetFromJsonAsync<ExpenseResponse>($"/api/expenses/{createdByA.Id}");
         Assert.Equal("A private expense", stillThere!.Title);
     }
+
+    [Fact]
+    public async Task CreateExpense_WithIncomeKind_PersistsKind()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+
+        var create = await client.PostAsJsonAsync("/api/expenses", new
+        {
+            title = "Payday",
+            amount = 1200m,
+            date = DateTime.UtcNow,
+            category = "Salary",
+            kind = "Income"
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var created = await create.Content.ReadFromJsonAsync<ExpenseResponse>();
+        Assert.Equal("Income", created!.Kind);
+
+        var withoutKind = await client.PostAsJsonAsync("/api/expenses", SampleExpense("Default kind"));
+        Assert.Equal(HttpStatusCode.Created, withoutKind.StatusCode);
+        var defaulted = await withoutKind.Content.ReadFromJsonAsync<ExpenseResponse>();
+        Assert.Equal("Expense", defaulted!.Kind);
+    }
 }

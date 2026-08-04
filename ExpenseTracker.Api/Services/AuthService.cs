@@ -12,12 +12,19 @@ namespace ExpenseTracker.Api.Services;
 
 public class AuthService : IAuthService
 {
+    private static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromMinutes(30);
+
     private readonly IUserRepository _userRepository;
+    private readonly IPasswordResetStore _passwordResetStore;
     private readonly IConfiguration _configuration;
 
-    public AuthService(IUserRepository userRepository, IConfiguration configuration)
+    public AuthService(
+        IUserRepository userRepository,
+        IPasswordResetStore passwordResetStore,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
+        _passwordResetStore = passwordResetStore;
         _configuration = configuration;
     }
 
@@ -49,6 +56,43 @@ public class AuthService : IAuthService
 
         var token = CreateToken(user);
         return LoginResult.Success(token, ToResponse(user));
+    }
+
+    public async Task<ForgotPasswordResult> ForgotPasswordAsync(
+        ForgotPasswordDto request,
+        bool includeResetTokenInResponse,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+
+        string? resetToken = null;
+        if (user is not null)
+        {
+            resetToken = _passwordResetStore.CreateToken(normalizedEmail, ResetTokenLifetime);
+        }
+
+        // Always the same user-facing message (anti-enumeration).
+        return ForgotPasswordResult.Accepted(
+            ErrorMessages.ForgotPasswordAccepted,
+            includeResetTokenInResponse ? resetToken : null);
+    }
+
+    public async Task<ResetPasswordResult> ResetPasswordAsync(
+        ResetPasswordDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        if (!_passwordResetStore.TryConsume(normalizedEmail, request.Token.Trim()))
+            return ResetPasswordResult.TokenInvalid();
+
+        var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+        if (user is null)
+            return ResetPasswordResult.TokenInvalid();
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        await _userRepository.SaveChangesAsync(cancellationToken);
+        return ResetPasswordResult.Success();
     }
 
     private string CreateToken(User user)

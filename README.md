@@ -13,20 +13,22 @@ Veritabanı: PostgreSQL (Entity Framework Core ile yönetilmektedir).
 
 ## Kurulum
 
-Gizli bilgiler repoda tutulmaz. Proje dizininde User Secrets yapılandırın:
+**Varsayılan veritabanı: PostgreSQL.** Geliştirmede `docker compose up -d` ile yerel
+Postgres ayağa kalkar; `appsettings.Development.json` buna uygun bağlantı dizesi içerir.
 
 ```powershell
+docker compose up -d
 cd ExpenseTracker.Api
 dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Database=expense_tracker;Username=postgres;Password=<parola>"
 dotnet user-secrets set "Jwt:Key" "<en-az-64-karakterlik-rastgele-bir-anahtar>"
+dotnet run
 ```
 
-Veritabanını hazırlayıp API'yi çalıştırın:
+Uygulama Postgres modunda açılışta EF migrasyonlarını uygular. Harici bir sunucu
+kullanıyorsanız bağlantı dizesini User Secrets ile override edin:
 
 ```powershell
-dotnet ef database update
-dotnet run
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Database=expense_tracker;Username=postgres;Password=<parola>"
 ```
 
 Development ortamında Swagger arayüzü `/swagger` adresindedir. Önce kayıt veya

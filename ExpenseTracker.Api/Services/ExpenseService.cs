@@ -33,6 +33,7 @@ public class ExpenseService : IExpenseService
             Amount = request.Amount,
             Date = request.Date,
             Category = request.Category.Trim(),
+            Kind = request.Kind,
             UserId = userId
         };
 
@@ -52,6 +53,7 @@ public class ExpenseService : IExpenseService
         expense.Amount = request.Amount;
         expense.Date = request.Date;
         expense.Category = request.Category.Trim();
+        expense.Kind = request.Kind;
         await _expenseRepository.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -74,6 +76,7 @@ public class ExpenseService : IExpenseService
         Title = expense.Title,
         Amount = expense.Amount,
         Date = expense.Date,
-        Category = expense.Category
+        Category = expense.Category,
+        Kind = expense.Kind
     };
 }
