@@ -1,112 +1,116 @@
 # ExpenseTracker API
 
-.NET 8, Entity Framework Core ve PostgreSQL ile geliştirilmiş harcama takip Web API'si.
+Bu proje, harcama ve gelir takibi yapan bir uygulamanın **arka yüzüdür** (API).
 
-Veritabanı: PostgreSQL (Entity Framework Core ile yönetilmektedir).
+Telefon / web uygulaması (Flutter) buraya bağlanır; kullanıcılar kayıt olur, giriş yapar, harcama ekler ve bütçe tanımlar.
 
-- BCrypt ile parola hashleme
-- JWT Bearer kimlik doğrulama
-- Kullanıcıya özel, yetkilendirilmiş harcama CRUD işlemleri
-- DTO tabanlı istek/yanıt modelleri ve girdi doğrulama
-- Swagger üzerinden JWT destekli API testi
-- Flutter Web istemcileri için yapılandırılabilir CORS
+---
 
-## Kurulum
+## Bu API ne işe yarar?
 
-Gizli bilgiler repoda tutulmaz. Proje dizininde User Secrets yapılandırın:
+- Kullanıcı kaydı ve girişi
+- Harcama ve gelir ekleme, düzenleme, silme
+- Aylık bütçe koyma (örnek: “Bu ay yemeğe en fazla 3000 TL”)
+- Şifremi unuttum / yeni şifre belirleme
+- Her kullanıcının sadece kendi verisini görmesi
 
-```powershell
-cd ExpenseTracker.Api
-dotnet user-secrets init
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Database=expense_tracker;Username=postgres;Password=<parola>"
-dotnet user-secrets set "Jwt:Key" "<en-az-64-karakterlik-rastgele-bir-anahtar>"
+---
+
+## Nasıl çalışır? (basitçe)
+
+```text
+  Flutter uygulaması  →  bu API  →  veritabanı (PostgreSQL)
 ```
 
-Veritabanını hazırlayıp API'yi çalıştırın:
+1. Kullanıcı uygulamadan giriş yapar  
+2. API bir **anahtar (token)** verir  
+3. Sonraki isteklerde bu anahtar ile “benim hesabım” doğrulanır  
+4. Veriler veritabanında saklanır  
+
+---
+
+## Bilgisayarda çalıştırmak
+
+### Seçenek A — Kalıcı veri (önerilen)
+
+PostgreSQL veritabanı Docker ile ayağa kalkar. Veriler uygulama kapanınca silinmez.
 
 ```powershell
-dotnet ef database update
+docker compose up -d
+cd ExpenseTracker.Api
+dotnet user-secrets init
+dotnet user-secrets set "Jwt:Key" "buraya-en-az-64-karakterlik-uzun-bir-gizli-anahtar-yazin-1234567890"
 dotnet run
 ```
 
-Development ortamında Swagger arayüzü `/swagger` adresindedir. Önce kayıt veya
-giriş isteği gönderin, dönen token'ı Swagger'daki **Authorize** alanına girin.
+### Seçenek B — Hızlı deneme (geçici)
 
-## Veritabanı sağlayıcısı
-
-**Varsayılan olarak PostgreSQL kullanılır** (Development dahil tüm ortamlarda).
-Yukarıdaki `ConnectionStrings:DefaultConnection` User Secret'ı ayarlandığı
-sürece ek bir yapılandırma gerekmez.
-
-Dış bir PostgreSQL sunucusu kurmadan hızlıca çalıştırmak/test etmek isterseniz,
-EF Core InMemory sağlayıcısına geçebilirsiniz. Bunun için `appsettings.json`
-dosyalarını değiştirmeden, sadece o çalıştırma için bir ortam değişkeni
-ayarlamanız yeterlidir:
+Veritabanı kurmana gerek yok. Ama uygulamayı her kapattığında veriler silinir.
 
 ```powershell
 $env:Database__Provider = "InMemory"
-dotnet run
+dotnet run --project ExpenseTracker.Api
 ```
 
-veya tek seferlik:
+---
+
+## Çalıştığını nasıl anlarım?
+
+Tarayıcıda şunları aç:
+
+| Ne | Adres |
+|----|--------|
+| API test ekranı (Swagger) | `http://localhost:5123/swagger` |
+| Sağlık kontrolü | `http://localhost:5123/health` → `Healthy` yazmalı |
+
+Swagger’da önce **register** veya **login** yap, gelen token’ı **Authorize** kısmına yapıştır. Sonra diğer işlemleri deneyebilirsin.
+
+---
+
+## Ne tür istekler var?
+
+### Giriş / hesap
+- Kayıt ol  
+- Giriş yap  
+- Şifremi unuttum  
+- Yeni şifre belirle  
+- Profilimi gör / güncelle / sil  
+
+### Harcamalar
+- Listele  
+- Ekle (gider veya gelir)  
+- Düzenle  
+- Sil  
+
+### Bütçe
+- Bu ay için limit koy (genel veya kategori: Yemek, Ulaşım…)  
+- Ne kadar harcandığını ve limit aşıldı mı gör  
+
+> Teknik adresler Swagger’da listelenir (`/api/auth/...`, `/api/expenses`, `/api/budgets`).
+
+---
+
+## Önemli notlar
+
+- **Gizli bilgiler** (şifre anahtarı, veritabanı parolası) GitHub’a yazılmaz; User Secrets kullanılır.  
+- **InMemory** sadece deneme içindir; gerçek kullanımda PostgreSQL tercih edilir.  
+- Flutter istemci projesi: [expense_tracker](https://github.com/osmanmerey/expense_tracker)
+
+---
+
+## Testleri çalıştırmak
 
 ```powershell
-dotnet run --Database:Provider=InMemory
+dotnet test
 ```
 
-> ⚠️ InMemory modunda veriler işlem belleğinde tutulur ve her yeniden
-> başlatmada silinir; ayrıca EF Core migrasyon komutları (`dotnet ef ...`)
-> bu modda çalışmaz. Sadece geçici/hızlı denemeler için kullanın.
+Hepsi yeşil (geçti) olmalı.
 
-## Uç noktalar
+---
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/users/me`
-- `PUT /api/users/me`
-- `DELETE /api/users/me`
-- `GET /api/expenses`
-- `GET /api/expenses/{id}`
-- `POST /api/expenses`
-- `PUT /api/expenses/{id}`
-- `DELETE /api/expenses/{id}`
+## Daha fazla teknik detay
 
-Expense ve kullanıcı uç noktaları JWT gerektirir. Expense kayıtlarının `UserId`
-değeri token'daki kullanıcı kimliğinden sunucu tarafından atanır; istemci başka
-bir kullanıcının kayıtlarını okuyamaz veya değiştiremez.
-
-## Versiyonlama
-
-Proje [Semantic Versioning](https://semver.org/lang/tr/) (`MAJOR.MINOR.PATCH`)
-kullanır ve tek bir `master` dalı üzerinde ilerler (trunk-based); sürümler
-branch ile değil, git **tag**'leri ve GitHub **Release**'leri ile işaretlenir.
-
-- **MAJOR** — geriye uyumsuz (breaking) API değişikliği (örn. bir endpoint'in
-  kaldırılması/imzasının değişmesi).
-- **MINOR** — geriye uyumlu yeni özellik (örn. yeni bir endpoint).
-- **PATCH** — geriye uyumlu hata düzeltmesi/iç refactor.
-
-Yeni bir sürüm yayımlamak için:
-
-```powershell
-# 1. ExpenseTracker.Api/ExpenseTracker.Api.csproj içindeki <Version> değerini güncelleyin
-# 2. CHANGELOG.md'ye yeni sürüm için bir bölüm ekleyin (Unreleased'i taşıyın)
-git add -A
-git commit -m "chore(release): vX.Y.Z"
-git tag -a vX.Y.Z -m "vX.Y.Z"
-git push origin master --tags
-```
-
-Ardından GitHub'da **Releases → Draft a new release** ile bu tag'i seçip
-`CHANGELOG.md`'deki ilgili bölümü açıklama olarak ekleyerek bir Release
-yayımlayabilirsiniz.
-
-Mevcut sürümler için bkz. [`CHANGELOG.md`](./CHANGELOG.md).
-
-## Postman
-
-`postman/ExpenseTracker.postman_collection.json` koleksiyonunu Postman'e import
-edin. `baseUrl` koleksiyon değişkenini API adresinizle güncelleyin (varsayılan
-`https://localhost:7270`). **Login** isteği başarılı olduğunda dönen token
-otomatik olarak `token` değişkenine kaydedilir ve korumalı isteklerde
-`Authorization: Bearer` başlığı olarak kullanılır.
+- Sürüm notları: [`CHANGELOG.md`](./CHANGELOG.md)  
+- Postman koleksiyonu: `postman/ExpenseTracker.postman_collection.json`  
+- Hata formatı: Problem Details (standart JSON hata cevabı)  
+- Giriş denemeleri: rate limit (çok fazla yanlış denemeyi yavaşlatır)
