@@ -1,3 +1,4 @@
+using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -35,11 +36,13 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
         // TestServer, so it must be raised well above the number of auth calls any single
         // test class makes, or unrelated tests would start failing with 429 Too Many Requests.
         Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", "1000");
+        // Dev/test aid only — Production fails fast if this is true (see Program.cs).
+        Environment.SetEnvironmentVariable("Auth__ExposeResetTokenInResponse", "true");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(HostingEnvironments.Testing);
 
         // ConfigureTestServices runs after Program.cs registrations, so removing
         // every AppDbContext / DbContextOptions descriptor here strips the Npgsql

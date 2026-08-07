@@ -275,7 +275,7 @@ arayüz koduna dokunulmadan yalnızca veri kaynağı (Firebase → API) değişt
 
 ### Backend — `dotnet test` (xUnit + WebApplicationFactory + EF Core InMemory)
 
-**Sonuç: 18/18 başarılı** (eski CRUD/auth testleri + hata yönetimi sözleşmesi testleri).
+**Sonuç: 27/27 başarılı** (CRUD/auth/bütçe + hata yönetimi; her PR’da sayı doğrulanır).
 
 Önceki temel senaryolar (register/login/CRUD/izolasyon) duruyor. Hata yönetimi ile eklenenler:
 
@@ -316,31 +316,42 @@ Ayrıntılı önce/sonra ve kabul kriterleri: **§11**.
 
 1. **Sızmış eski kimlik bilgisi:** Depoya daha önce commit'lenmiş Neon PostgreSQL
    parolası **döndürülmeli (rotate)**. `appsettings.json` artık boştur, ancak git
-   geçmişinde eski değer bulunabilir.
-2. **Register `name` türetimi:** Flutter sözleşmesi yalnızca `(email, password)`
+   geçmişinde eski değer bulunabilir. `appsettings.Development.json` içindeki
+   `postgres/postgres` yalnızca yerel `docker-compose` içindir — gerçek ortamda
+   user-secrets / env kullanın.
+2. **Şifre sıfırlama sonrası JWT:** Reset sonrası eski JWT’ler süre bitene kadar
+   (≈1 gün) geçerli kalır. `SecurityStamp` / `TokenVersion` claim karşılaştırması
+   henüz yok (ayrı PR).
+3. **Para birimi:** `Expense.Currency` kolonu + `GET /api/currencies` eklendi;
+   Flutter `currency` alanını gönderiyor. Eski `[USD] title` satırları migration
+   ile backfill edilir. İstemci offline kur tablosu hâlâ local kopya — online’da
+   `/api/currencies` tercih edilmeli (tam istemci entegrasyonu sonraki adım).
+4. **Harcama tarihi:** Yeni kayıtlar UTC 12:00’a normalize edilir; eski satırlar
+   farklı semantikte kalabilir. Tercihen saatsiz tip + tek seferlik migration.
+5. **Register `name` türetimi:** Flutter sözleşmesi yalnızca `(email, password)`
    aldığı için `name`, e-postanın yerel kısmından üretilir. Gerçek ad gerekiyorsa
    kayıt akışı/sözleşme genişletilmelidir.
-3. **HTTPS sertifikası (Flutter):** Android emülatöründe self-signed dev
+6. **HTTPS sertifikası (Flutter):** Android emülatöründe self-signed dev
    sertifikası ek yapılandırma gerektirebilir; `ApiConstants.baseUrl` hedefe göre
    ayarlanmalıdır (`10.0.2.2`, cihaz IP'si vb.).
-4. **Firebase bağımlılıkları:** `firebase_*` paketleri ve `firebase_options.dart`
+7. **Firebase bağımlılıkları:** `firebase_*` paketleri ve `firebase_options.dart`
    hâlâ mevcut (derlemenin bozulmaması için). Tamamen kaldırılması ayrı bir
    temizleme adımıdır.
-5. **Windows Developer Mode:** Flutter'ın eklenti (plugin) derlemesi için
+8. **Windows Developer Mode:** Flutter'ın eklenti (plugin) derlemesi için
    sembolik bağlantı desteği gerekir (`start ms-settings:developers`). Bu, kodla
    ilgili değildir; `flutter test`/`analyze` etkilenmez.
-6. **Test veritabanı:** Entegrasyon testleri InMemory sağlayıcı kullanır; gerçek
+9. **Test veritabanı:** Entegrasyon testleri InMemory sağlayıcı kullanır; gerçek
    PostgreSQL'e özgü davranışlar (ör. eşzamanlılık, kısıt ihlalleri) bu testlerde
    birebir kapsanmaz.
-7. **Token süresi:** JWT 1 gün geçerlidir; yenileme (refresh token) akışı yoktur.
+10. **Token süresi:** JWT 1 gün geçerlidir; yenileme (refresh token) akışı yoktur.
    Süre dolunca istemci yeniden giriş yapmalıdır.
 
 ---
 
 ## 11. Uçtan Uca Hata Yönetimi — Önce/Sonra (29.07.2026)
 
-**Adım 5.** “Önce” kolonları = Adım 1 envanteri (`docs/hata-envanteri.md` / `docs/hata-envanteri-yeni.md`).  
-Sözleşme: `docs/hata-sozlesmesi.md` (RFC 7807 Problem Details, `traceId`, 4xx / 503 / 500).
+**Adım 5.** “Önce” kolonları = Adım 1 envanteri (`docs/hata-envanteri.md`).  
+Sözleşme: `docs/hata-sozlesmesi.md` (RFC 7807 Problem Details, `traceId`, `instance`, 4xx / 503 / 500).
 
 ### 11.1 Önce / sonra tablosu
 
@@ -372,7 +383,7 @@ Sözleşme: `docs/hata-sozlesmesi.md` (RFC 7807 Problem Details, `traceId`, 4xx 
 | 8 | Kullanıcıdaki bilgiyle log’a takip (`traceId`) | **Evet** | Yanıt `traceId` = `TraceIdentifier`; 5xx Error / 4xx Warning log satırında aynı id |
 | 9 | Beklenen 4xx ile beklenmeyen 5xx aynı log seviyesinde değil | **Evet** | `ClientErrorLoggingMiddleware` → **Warning**; handler → **Error** |
 | 10 | Log / çıktıda parola, hash, token yok | **Evet** | 4xx middleware body loglamaz; token log kuralı korunur |
-| 11 | Senaryolar için otomatik test; `dotnet test` / `flutter test` yeşil | **Kısmen / pratikte evet** | API **18/18** yeşil (validation, 401, 409, 429, 500, 503, health, izolasyon…). Flutter (`expense_tracker`) **23/23** yeşil (stale, timeout, server, Problem Details, auth detail…). Her envanter satırına **ayrı** UI E2E testi yok; kritik yollar birim/entegrasyon ile kapalı. |
+| 11 | Senaryolar için otomatik test; `dotnet test` / `flutter test` yeşil | **Kısmen / pratikte evet** | API suite yeşil (validation, 401, 409, 429, 500, 503, unique≠503, health, izolasyon…). Flutter (`expense_tracker`) yeşil (stale, timeout, server, Problem Details, auth detail…). Her envanter satırına **ayrı** UI E2E testi yok; kritik yollar birim/entegrasyon ile kapalı. |
 
 ### 11.3 Test komutları (son doğrulama)
 

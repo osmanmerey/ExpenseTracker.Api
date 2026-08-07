@@ -12,9 +12,14 @@ public static class ConfigurationKeys
 
     public const string DatabaseProvider = "Database:Provider";
     public const string DefaultConnectionName = "DefaultConnection";
+    public const string DatabaseCommandTimeoutSeconds = "Database:CommandTimeoutSeconds";
+    public const string ApplyMigrationsOnStartup = "Database:ApplyMigrationsOnStartup";
 
     public const string CorsAllowedOrigins = "Cors:AllowedOrigins";
 
     public const string AuthRateLimitPermitLimit = "RateLimiting:AuthPermitLimit";
     public const string AuthRateLimitWindowSeconds = "RateLimiting:AuthWindowSeconds";
+
+    /// <summary>Dev-only: return reset token in forgot-password JSON. Must stay false in Production.</summary>
+    public const string AuthExposeResetTokenInResponse = "Auth:ExposeResetTokenInResponse";
 }

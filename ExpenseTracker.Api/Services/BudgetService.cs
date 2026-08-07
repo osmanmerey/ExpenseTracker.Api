@@ -2,6 +2,7 @@ using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Models;
 using ExpenseTracker.Api.Repositories;
+using ExpenseTracker.Api.Services.Results;
 
 namespace ExpenseTracker.Api.Services;
 
@@ -43,16 +44,16 @@ public class BudgetService : IBudgetService
         return ToResponse(budget, spentByCategory);
     }
 
-    public async Task<(BudgetResponseDto? Budget, string? Error)> CreateAsync(
+    public async Task<(BudgetResponseDto? Budget, BudgetWriteError Error)> CreateAsync(
         Guid userId,
         BudgetCreateDto request,
         CancellationToken cancellationToken = default)
     {
-        var category = NormalizeCategory(request.Category);
+        var category = CategoryNormalizer.Display(request.Category);
         var exists = await _budgetRepository.ExistsForPeriodAsync(
             userId, request.Year, request.Month, category, null, cancellationToken);
         if (exists)
-            return (null, "A budget already exists for this category and month.");
+            return (null, BudgetWriteError.DuplicateCategoryMonth);
 
         var budget = new Budget
         {
@@ -68,10 +69,10 @@ public class BudgetService : IBudgetService
 
         var spentByCategory = await GetSpentByCategoryAsync(
             userId, budget.Year, budget.Month, cancellationToken);
-        return (ToResponse(budget, spentByCategory), null);
+        return (ToResponse(budget, spentByCategory), BudgetWriteError.None);
     }
 
-    public async Task<(bool Found, string? Error)> UpdateAsync(
+    public async Task<(bool Found, BudgetWriteError Error)> UpdateAsync(
         Guid id,
         Guid userId,
         BudgetUpdateDto request,
@@ -79,20 +80,20 @@ public class BudgetService : IBudgetService
     {
         var budget = await _budgetRepository.GetByIdAsync(id, userId, cancellationToken);
         if (budget is null)
-            return (false, null);
+            return (false, BudgetWriteError.None);
 
-        var category = NormalizeCategory(request.Category);
+        var category = CategoryNormalizer.Display(request.Category);
         var exists = await _budgetRepository.ExistsForPeriodAsync(
             userId, request.Year, request.Month, category, id, cancellationToken);
         if (exists)
-            return (true, "A budget already exists for this category and month.");
+            return (true, BudgetWriteError.DuplicateCategoryMonth);
 
         budget.Category = category;
         budget.LimitAmount = request.LimitAmount;
         budget.Year = request.Year;
         budget.Month = request.Month;
         await _budgetRepository.SaveChangesAsync(cancellationToken);
-        return (true, null);
+        return (true, BudgetWriteError.None);
     }
 
     public async Task<bool> DeleteAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
@@ -112,21 +113,21 @@ public class BudgetService : IBudgetService
         int month,
         CancellationToken cancellationToken)
     {
-        var expenses = await _expenseRepository.GetAllForUserNoTrackingAsync(userId, cancellationToken);
-        var periodExpenses = expenses.Where(e =>
-            e.Kind == TransactionKind.Expense &&
-            e.Date.Year == year &&
-            e.Date.Month == month);
+        var start = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = start.AddMonths(1);
 
-        var byCategory = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var expenses = await _expenseRepository.GetForUserInDateRangeNoTrackingAsync(
+            userId, start, end, cancellationToken);
+
+        var byCategory = new Dictionary<string, decimal>(StringComparer.Ordinal);
         decimal total = 0;
 
-        foreach (var expense in periodExpenses)
+        foreach (var expense in expenses.Where(e => e.Kind == TransactionKind.Expense))
         {
-            // Convert to TRY so budgets match the Flutter UI (limits are TRY).
-            var amountTry = FixedCurrencyRates.ToTry(expense.Amount, expense.Title);
+            var amountTry = FixedCurrencyRates.ToTry(
+                expense.Amount, expense.Currency, expense.Title);
             total += amountTry;
-            var key = expense.Category.Trim();
+            var key = CategoryNormalizer.Key(expense.Category);
             byCategory[key] = byCategory.GetValueOrDefault(key) + amountTry;
         }
 
@@ -134,14 +135,10 @@ public class BudgetService : IBudgetService
         return byCategory;
     }
 
-    private static string NormalizeCategory(string? category) =>
-        string.IsNullOrWhiteSpace(category) ? string.Empty : category.Trim();
-
     private static BudgetResponseDto ToResponse(Budget budget, IReadOnlyDictionary<string, decimal> spentByCategory)
     {
-        var key = budget.Category;
+        var key = CategoryNormalizer.Key(budget.Category);
         spentByCategory.TryGetValue(key, out var spent);
-        // Overall budget uses empty key; category budgets match category name.
         if (string.IsNullOrEmpty(key))
             spent = spentByCategory.GetValueOrDefault(string.Empty);
 

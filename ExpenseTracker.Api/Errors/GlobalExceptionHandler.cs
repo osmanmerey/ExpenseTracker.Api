@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using ExpenseTracker.Api.Common;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 
 namespace ExpenseTracker.Api.Errors;
 
@@ -18,7 +19,17 @@ public sealed class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        var traceId = httpContext.TraceIdentifier;
+        // Client aborted the request — not a server failure.
+        if (exception is OperationCanceledException &&
+            httpContext.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogDebug(
+                exception,
+                "Request aborted by client. TraceId={TraceId}",
+                httpContext.TraceIdentifier);
+            return true;
+        }
+
         var unavailable = IsServiceUnavailable(exception);
         var status = unavailable
             ? StatusCodes.Status503ServiceUnavailable
@@ -26,46 +37,50 @@ public sealed class GlobalExceptionHandler(
         var detail = unavailable
             ? ErrorMessages.ServiceUnavailable
             : ErrorMessages.UnexpectedError;
-        var title = unavailable ? "Service Unavailable" : "Internal Server Error";
 
         logger.LogError(
             exception,
             "Unhandled exception. Status={Status} TraceId={TraceId}",
             status,
-            traceId);
+            httpContext.TraceIdentifier);
 
         httpContext.Response.StatusCode = status;
 
-        // Do not pass Exception into ProblemDetailsContext — avoids leaking details to clients.
         await problemDetailsService.WriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
-            ProblemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Detail = detail,
-                Type = $"https://httpstatuses.com/{status}",
-                Extensions = { ["traceId"] = traceId }
-            }
+            ProblemDetails = ProblemFactory.Create(status, detail, httpContext)
         });
 
         return true;
     }
 
-    internal static bool IsServiceUnavailable(Exception exception)
+    /// <summary>
+    /// True only for likely-transient outages (network/timeout/Npgsql transient).
+    /// Data/SQL errors (unique, FK, …) stay 500.
+    /// </summary>
+    public static bool IsServiceUnavailable(Exception exception)
     {
         for (var ex = exception; ex is not null; ex = ex.InnerException!)
         {
             if (ex is TimeoutException or SocketException)
                 return true;
 
-            var typeName = ex.GetType().FullName ?? string.Empty;
-            if (typeName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
-                return true;
+            if (ex is PostgresException postgres)
+            {
+                // Class 08 = connection exception; 57P01 = admin_shutdown, etc.
+                var state = postgres.SqlState ?? string.Empty;
+                return state.StartsWith("08", StringComparison.Ordinal) ||
+                       state.StartsWith("57P", StringComparison.Ordinal);
+            }
 
+            if (ex is NpgsqlException npgsql)
+                return npgsql.IsTransient;
+
+            // EF Core retry wrapper messages — require both cues, not bare "transient".
             if (ex is InvalidOperationException &&
-                ex.Message.Contains("transient", StringComparison.OrdinalIgnoreCase))
+                ex.Message.Contains("transient failure", StringComparison.OrdinalIgnoreCase) &&
+                ex.Message.Contains("retry", StringComparison.OrdinalIgnoreCase))
                 return true;
         }
 

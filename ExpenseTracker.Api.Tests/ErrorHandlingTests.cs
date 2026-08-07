@@ -1,7 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Text.Json;
+using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.Errors;
 using Microsoft.AspNetCore.Hosting;
+using Npgsql;
 using Xunit;
 
 namespace ExpenseTracker.Api.Tests;
@@ -115,6 +119,27 @@ public class ErrorHandlingTests : IClassFixture<ApiWebApplicationFactory>
         var response = await client.GetAsync("/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public void IsServiceUnavailable_UniqueViolation_IsNot503()
+    {
+        // 23505 = unique_violation — data error, not outage.
+        var ex = new PostgresException("duplicate key", "ERROR", "ERROR", "23505");
+        Assert.False(GlobalExceptionHandler.IsServiceUnavailable(ex));
+    }
+
+    [Fact]
+    public void IsServiceUnavailable_ConnectionSqlState_Is503()
+    {
+        var ex = new PostgresException("connection failure", "ERROR", "ERROR", "08006");
+        Assert.True(GlobalExceptionHandler.IsServiceUnavailable(ex));
+    }
+
+    [Fact]
+    public void IsServiceUnavailable_SocketException_Is503()
+    {
+        Assert.True(GlobalExceptionHandler.IsServiceUnavailable(new SocketException(10061)));
+    }
 }
 
 /// <summary>
@@ -125,8 +150,8 @@ public class RateLimitWebApplicationFactory : ApiWebApplicationFactory
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
-        builder.UseSetting("RateLimiting:AuthPermitLimit", "2");
-        builder.UseSetting("RateLimiting:AuthWindowSeconds", "60");
+        builder.UseSetting(ConfigurationKeys.AuthRateLimitPermitLimit, "2");
+        builder.UseSetting(ConfigurationKeys.AuthRateLimitWindowSeconds, "60");
     }
 }
 

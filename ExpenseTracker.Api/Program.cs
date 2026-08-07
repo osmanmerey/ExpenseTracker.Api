@@ -8,7 +8,6 @@ using ExpenseTracker.Api.Errors;
 using ExpenseTracker.Api.Repositories;
 using ExpenseTracker.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -26,6 +25,11 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < SecurityConstants.Minim
 if (string.IsNullOrWhiteSpace(jwtIssuer) || string.IsNullOrWhiteSpace(jwtAudience))
     throw new InvalidOperationException(ErrorMessages.JwtIssuerOrAudienceMissing);
 
+var exposeResetToken = builder.Configuration.GetValue(
+    ConfigurationKeys.AuthExposeResetTokenInResponse, false);
+if (exposeResetToken && builder.Environment.IsProduction())
+    throw new InvalidOperationException(ErrorMessages.ExposeResetTokenInProduction);
+
 var databaseProvider = builder.Configuration[ConfigurationKeys.DatabaseProvider] ?? DatabaseProviders.Postgres;
 
 if (string.Equals(databaseProvider, DatabaseProviders.InMemory, StringComparison.OrdinalIgnoreCase))
@@ -39,8 +43,12 @@ else
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException(ErrorMessages.ConnectionStringMissing);
 
+    var commandTimeout = builder.Configuration.GetValue(
+        ConfigurationKeys.DatabaseCommandTimeoutSeconds,
+        SecurityConstants.DefaultDatabaseCommandTimeoutSeconds);
+
     builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(connectionString, npgsql => npgsql.CommandTimeout(30)));
+        options.UseNpgsql(connectionString, npgsql => npgsql.CommandTimeout(commandTimeout)));
 }
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -57,6 +65,11 @@ builder.Services.AddProblemDetails(options =>
     options.CustomizeProblemDetails = context =>
     {
         context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+        context.ProblemDetails.Instance ??= context.HttpContext.Request.Path;
+        if (string.IsNullOrWhiteSpace(context.ProblemDetails.Title) && context.ProblemDetails.Status is int status)
+            context.ProblemDetails.Title = ProblemTitles.For(status);
+        if (string.IsNullOrWhiteSpace(context.ProblemDetails.Type) && context.ProblemDetails.Status is int s)
+            context.ProblemDetails.Type = $"https://httpstatuses.com/{s}";
     };
 });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -116,14 +129,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/problem+json";
 
-                var problem = new ProblemDetails
+                var problem = ProblemFactory.Create(
+                    StatusCodes.Status401Unauthorized,
+                    ErrorMessages.Unauthorized,
+                    context.HttpContext);
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions
                 {
-                    Status = StatusCodes.Status401Unauthorized,
-                    Title = "Unauthorized",
-                    Detail = ErrorMessages.Unauthorized,
-                    Type = "https://httpstatuses.com/401",
-                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
-                };
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                }));
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/problem+json";
+
+                var problem = ProblemFactory.Create(
+                    StatusCodes.Status403Forbidden,
+                    ErrorMessages.Forbidden,
+                    context.HttpContext);
 
                 await context.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions
                 {
@@ -150,18 +174,11 @@ builder.Services.AddRateLimiter(options =>
         http.Response.ContentType = "application/problem+json";
         http.Response.Headers.RetryAfter = authWindowSeconds.ToString();
 
-        var problem = new ProblemDetails
-        {
-            Status = StatusCodes.Status429TooManyRequests,
-            Title = "Too Many Requests",
-            Detail = ErrorMessages.TooManyRequests,
-            Type = "https://httpstatuses.com/429",
-            Extensions =
-            {
-                ["traceId"] = http.TraceIdentifier,
-                ["retryAfterSeconds"] = authWindowSeconds
-            }
-        };
+        var problem = ProblemFactory.Create(
+            StatusCodes.Status429TooManyRequests,
+            ErrorMessages.TooManyRequests,
+            http,
+            new Dictionary<string, object?> { ["retryAfterSeconds"] = authWindowSeconds });
 
         await http.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions
         {
@@ -182,12 +199,22 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var allowedOrigins = builder.Configuration.GetSection(ConfigurationKeys.CorsAllowedOrigins).Get<string[]>() ?? [];
+if (!builder.Environment.IsDevelopment() &&
+    !builder.Environment.IsEnvironment(HostingEnvironments.Testing) &&
+    allowedOrigins.Length == 0)
+{
+    throw new InvalidOperationException(
+        "Cors:AllowedOrigins must be configured outside Development/Testing.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
         if (builder.Environment.IsDevelopment())
         {
+            // Flutter web / Vite often use random or fixed localhost ports (e.g. 5173, 51999).
+            // Dev-only: allow any localhost origin; prefer documenting a fixed --web-port in clients.
             policy.SetIsOriginAllowed(origin =>
                     Uri.TryCreate(origin, UriKind.Absolute, out var originUri) &&
                     originUri.Host == "localhost")
@@ -208,10 +235,14 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// Auto-migrate only when explicitly enabled (default: Development). Production uses deploy-time `dotnet ef database update`.
+var applyMigrations = builder.Configuration.GetValue(
+    ConfigurationKeys.ApplyMigrationsOnStartup,
+    defaultValue: app.Environment.IsDevelopment());
+if (applyMigrations)
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Skip for InMemory (tests / Database:Provider=InMemory).
     if (db.Database.IsRelational())
         db.Database.Migrate();
 }
@@ -223,7 +254,30 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-app.UseStatusCodePages();
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    var http = statusCodeContext.HttpContext;
+    if (http.Response.StatusCode is < 400 or >= 600)
+        return;
+    if (http.Response.ContentLength is > 0)
+        return;
+
+    // Fill empty 4xx/5xx bodies (e.g. 403 from authorization) with the shared contract.
+    var detail = http.Response.StatusCode switch
+    {
+        StatusCodes.Status401Unauthorized => ErrorMessages.Unauthorized,
+        StatusCodes.Status403Forbidden => ErrorMessages.Forbidden,
+        StatusCodes.Status404NotFound => ErrorMessages.NotFound,
+        _ => ErrorMessages.UnexpectedError
+    };
+
+    http.Response.ContentType = "application/problem+json";
+    var problem = ProblemFactory.Create(http.Response.StatusCode, detail, http);
+    await http.Response.WriteAsync(JsonSerializer.Serialize(problem, new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    }));
+});
 app.UseMiddleware<ClientErrorLoggingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors();

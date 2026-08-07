@@ -22,4 +22,7 @@ public static class SecurityConstants
     public const int DefaultAuthRateLimitPermitLimit = 5;
 
     public const int DefaultAuthRateLimitWindowSeconds = 60;
+
+    /// <summary>Default Npgsql command timeout when <see cref="ConfigurationKeys.DatabaseCommandTimeoutSeconds"/> is unset.</summary>
+    public const int DefaultDatabaseCommandTimeoutSeconds = 30;
 }

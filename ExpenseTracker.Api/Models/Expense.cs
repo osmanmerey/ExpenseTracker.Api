@@ -9,6 +9,9 @@ public class Expense
     public string Category { get; set; } = string.Empty;
     public TransactionKind Kind { get; set; } = TransactionKind.Expense;
 
+    /// <summary>ISO 4217 code (TRY/USD/EUR/GBP). Title is description only.</summary>
+    public string Currency { get; set; } = "TRY";
+
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
 }

@@ -25,4 +25,13 @@ public static class ErrorMessages
 
     public const string ConnectionStringMissing =
         "ConnectionStrings:DefaultConnection must be configured using user secrets or an environment variable.";
+
+    public const string Forbidden = "Bu işlem için yetkiniz yok.";
+    public const string BudgetDuplicateCategoryMonth =
+        "Bu kategori ve ay için zaten bir bütçe var.";
+    public const string BudgetMonthOutOfRange = "Ay 1 ile 12 arasında olmalıdır.";
+    public const string BudgetYearOutOfRange = "Yıl geçerli aralıkta değil.";
+
+    public const string ExposeResetTokenInProduction =
+        "Auth:ExposeResetTokenInResponse must not be true in Production.";
 }

@@ -3,8 +3,9 @@ using System.Text.RegularExpressions;
 namespace ExpenseTracker.Api.Common;
 
 /// <summary>
-/// Fixed FX rates matching the Flutter client (1 unit → TRY).
-/// Currency is encoded in expense titles as <c>[USD] description</c>.
+/// Fixed FX rates matching Flutter <c>lib/core/currency/fixed_exchange_rates.dart</c>
+/// (USD=47, EUR=54, GBP=63). Prefer <c>Expense.Currency</c>; title prefix is legacy.
+/// Also exposed via GET /api/currencies.
 /// </summary>
 public static partial class FixedCurrencyRates
 {
@@ -19,14 +20,31 @@ public static partial class FixedCurrencyRates
     [GeneratedRegex(@"^\[([A-Za-z]{3})\]\s*(.*)$", RegexOptions.CultureInvariant)]
     private static partial Regex CurrencyTitlePattern();
 
-    public static decimal ToTry(decimal amount, string? title)
+    public static IReadOnlyDictionary<string, decimal> AllRates => RatesToTry;
+
+    public static bool IsKnown(string? code) =>
+        !string.IsNullOrWhiteSpace(code) && RatesToTry.ContainsKey(code.Trim());
+
+    public static string Normalize(string? code)
     {
-        var code = ParseCurrencyCode(title);
+        if (string.IsNullOrWhiteSpace(code))
+            return "TRY";
+        var normalized = code.Trim().ToUpperInvariant();
+        return RatesToTry.ContainsKey(normalized) ? normalized : "TRY";
+    }
+
+    public static decimal ToTry(decimal amount, string? currencyCode, string? titleFallback = null)
+    {
+        var code = !string.IsNullOrWhiteSpace(currencyCode)
+            ? Normalize(currencyCode)
+            : ParseCurrencyCodeFromTitle(titleFallback);
+
         var rate = RatesToTry.GetValueOrDefault(code, 1m);
         return Math.Round(amount * rate, 2, MidpointRounding.AwayFromZero);
     }
 
-    public static string ParseCurrencyCode(string? title)
+    /// <summary>Legacy: currency encoded as <c>[USD] description</c> in title.</summary>
+    public static string ParseCurrencyCodeFromTitle(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
             return "TRY";
@@ -37,5 +55,13 @@ public static partial class FixedCurrencyRates
 
         var code = match.Groups[1].Value.ToUpperInvariant();
         return RatesToTry.ContainsKey(code) ? code : "TRY";
+    }
+
+    public static string StripCurrencyPrefix(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return string.Empty;
+        var match = CurrencyTitlePattern().Match(title.Trim());
+        return match.Success ? (match.Groups[2].Value ?? string.Empty).Trim() : title.Trim();
     }
 }

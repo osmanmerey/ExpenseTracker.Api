@@ -10,6 +10,13 @@ public interface IExpenseRepository
 {
     Task<List<Expense>> GetAllForUserNoTrackingAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Expenses for user with Date in [startInclusive, endExclusive).</summary>
+    Task<List<Expense>> GetForUserInDateRangeNoTrackingAsync(
+        Guid userId,
+        DateTime startInclusive,
+        DateTime endExclusive,
+        CancellationToken cancellationToken = default);
+
     Task<Expense?> GetByIdNoTrackingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>Tracked read, suitable for update/delete operations.</summary>
