@@ -74,6 +74,17 @@ public class ExpensesController : ControllerBase
             ? NoContent()
             : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
+    // ==========================================
+    // YÖNETİM PANELİ İÇİN KULLANICI HARCAMALARI
+    // ==========================================
+    [HttpGet("user/{targetUserId:guid}")]
+    [Authorize(Roles = "admin")]
+    public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetUserExpensesByAdmin(Guid targetUserId, CancellationToken cancellationToken)
+    {
+        // Admin, URL'den gönderdiği targetUserId sayesinde doğrudan o kişinin harcamalarını çeker
+        var expenses = await _expenseService.GetAllAsync(targetUserId, cancellationToken);
+        return Ok(expenses);
+    }
 
     private bool TryGetUserId(out Guid userId) =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);

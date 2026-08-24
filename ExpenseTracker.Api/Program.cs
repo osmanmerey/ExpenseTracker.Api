@@ -29,7 +29,7 @@ var exposeResetToken = builder.Configuration.GetValue(
     ConfigurationKeys.AuthExposeResetTokenInResponse, false);
 if (exposeResetToken && builder.Environment.IsProduction())
     throw new InvalidOperationException(ErrorMessages.ExposeResetTokenInProduction);
-
+/*
 var databaseProvider = builder.Configuration[ConfigurationKeys.DatabaseProvider] ?? DatabaseProviders.Postgres;
 
 if (string.Equals(databaseProvider, DatabaseProviders.InMemory, StringComparison.OrdinalIgnoreCase))
@@ -50,7 +50,10 @@ else
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(connectionString, npgsql => npgsql.CommandTimeout(commandTimeout)));
 }
-
+*/
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseInMemoryDatabase("ExpenseTrackerMemoryDb"));
+    //InMemory çalıştırmak için kullanılan blok
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
@@ -236,6 +239,7 @@ builder.Services.AddHealthChecks()
 var app = builder.Build();
 
 // Auto-migrate only when explicitly enabled (default: Development). Production uses deploy-time `dotnet ef database update`.
+/*
 var applyMigrations = builder.Configuration.GetValue(
     ConfigurationKeys.ApplyMigrationsOnStartup,
     defaultValue: app.Environment.IsDevelopment());
@@ -246,7 +250,7 @@ if (applyMigrations)
     if (db.Database.IsRelational())
         db.Database.Migrate();
 }
-
+*/
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -14,4 +14,11 @@ public interface IUserService
     Task<UserUpdateOutcome> UpdateCurrentUserAsync(Guid userId, UserUpdateDto request, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    // --- YENİ EKLENEN ADMIN METOTLARI ---
+    Task<IEnumerable<UserResponseDto>> GetAllUsersAsync(CancellationToken cancellationToken = default);
+
+    Task<bool> UpdateUserRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }

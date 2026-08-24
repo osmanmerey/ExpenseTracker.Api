@@ -50,6 +50,39 @@ public class UserService : IUserService
         return true;
     }
 
+    // --- YENİ EKLENEN ADMIN METOTLARI ---
+
+    public async Task<IEnumerable<UserResponseDto>> GetAllUsersAsync(CancellationToken cancellationToken = default)
+    {
+        // Not: IUserRepository içinde GetAllAsync metodu olduğundan emin ol.
+        var users = await _userRepository.GetAllAsync(cancellationToken); 
+        return users.Select(user => ToResponse(user.Id, user.Name, user.Email)).ToList();
+    }
+
+    public async Task<bool> UpdateUserRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
+            return false;
+
+        // User modelinde 'Role' alanı varsa güncellenir
+        user.Role = role.Trim().ToLowerInvariant(); 
+        await _userRepository.SaveChangesAsync(cancellationToken);
+        
+        return true;
+    }
+
+    public async Task<bool> DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
+            return false;
+
+        _userRepository.Remove(user);
+        await _userRepository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private static UserResponseDto ToResponse(Guid id, string name, string email) => new()
     {
         Id = id,

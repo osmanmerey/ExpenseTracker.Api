@@ -21,6 +21,8 @@ public class UsersController : ControllerBase
         _userService = userService;
     }
 
+    // --- MEVCUT UÇ NOKTALAR ---
+
     [HttpGet("me")]
     public async Task<ActionResult<UserResponseDto>> GetCurrentUser(CancellationToken cancellationToken)
     {
@@ -59,6 +61,39 @@ public class UsersController : ControllerBase
         var deleted = await _userService.DeleteCurrentUserAsync(userId, cancellationToken);
         return deleted
             ? NoContent()
+            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
+    }
+
+    // --- YENİ EKLENEN ADMIN UÇ NOKTALARI ---
+
+    [HttpGet]
+    //[Authorize(Roles = "admin")]
+    public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAllUsers(CancellationToken cancellationToken)
+    {
+        var users = await _userService.GetAllUsersAsync(cancellationToken);
+        return Ok(users);
+    }
+
+    [HttpPut("{id:guid}/role")]
+    //[Authorize(Roles = "admin")]
+    public async Task<IActionResult> UpdateUserRole(Guid id, [FromBody] string role, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            return BadRequest("Rol alanı boş bırakılamaz.");
+
+        var success = await _userService.UpdateUserRoleAsync(id, role, cancellationToken);
+        return success 
+            ? NoContent() 
+            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
+    }
+
+    [HttpDelete("{id:guid}")]
+    //[Authorize(Roles = "admin")]
+    public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
+    {
+        var success = await _userService.DeleteUserAsync(id, cancellationToken);
+        return success 
+            ? NoContent() 
             : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
 

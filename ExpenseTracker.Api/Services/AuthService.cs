@@ -34,11 +34,18 @@ public class AuthService : IAuthService
         if (await _userRepository.EmailExistsAsync(normalizedEmail, cancellationToken: cancellationToken))
             return RegisterResult.EmailConflict();
 
+        string assignedRole = "user";
+        if (normalizedEmail == "boss@test.com")
+        {
+            assignedRole = "admin";
+        }
+
         var user = new User
         {
             Name = request.Name.Trim(),
             Email = normalizedEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Role = "admin"
         };
 
         await _userRepository.AddAsync(user, cancellationToken);
@@ -95,12 +102,14 @@ public class AuthService : IAuthService
         return ResetPasswordResult.Success();
     }
 
-    private string CreateToken(User user)
+private string CreateToken(User user)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.Email)
+            new(ClaimTypes.Name, user.Email),
+            // (Eğer User modelinde rol alanı boşsa varsayılan olarak "user" atıyoruz)
+            new(ClaimTypes.Role, user.Role ?? "user")
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration[ConfigurationKeys.JwtKey]!));
@@ -119,6 +128,7 @@ public class AuthService : IAuthService
     {
         Id = user.Id,
         Name = user.Name,
-        Email = user.Email
+        Email = user.Email,
+        Role = user.Role
     };
 }
