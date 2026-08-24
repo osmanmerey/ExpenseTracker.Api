@@ -235,6 +235,23 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+var bootstrapAdmins = builder.Configuration
+    .GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
+    .Get<string[]>()
+    ?.Where(email => !string.IsNullOrWhiteSpace(email))
+    .Select(email => email.Trim())
+    .ToArray() ?? [];
+var inMemory = string.Equals(
+    builder.Configuration[ConfigurationKeys.DatabaseProvider],
+    DatabaseProviders.InMemory,
+    StringComparison.OrdinalIgnoreCase);
+var bootstrapLabel = bootstrapAdmins.Length > 0
+    ? string.Join(", ", bootstrapAdmins)
+    : app.Environment.IsDevelopment() || inMemory
+        ? $"{AuthBootstrapDefaults.DevelopmentAdminEmail} (local default)"
+        : "(none)";
+app.Logger.LogInformation("Auth bootstrap admin emails: {Emails}", bootstrapLabel);
+
 // Auto-migrate only when explicitly enabled (default: Development). Production uses deploy-time `dotnet ef database update`.
 var applyMigrations = builder.Configuration.GetValue(
     ConfigurationKeys.ApplyMigrationsOnStartup,
