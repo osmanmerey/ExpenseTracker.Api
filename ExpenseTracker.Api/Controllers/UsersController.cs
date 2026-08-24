@@ -21,8 +21,6 @@ public class UsersController : ControllerBase
         _userService = userService;
     }
 
-    // --- MEVCUT UÇ NOKTALAR ---
-
     [HttpGet("me")]
     public async Task<ActionResult<UserResponseDto>> GetCurrentUser(CancellationToken cancellationToken)
     {
@@ -64,10 +62,8 @@ public class UsersController : ControllerBase
             : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
 
-    // --- YENİ EKLENEN ADMIN UÇ NOKTALARI ---
-
     [HttpGet]
-    //[Authorize(Roles = "admin")]
+    [Authorize(Roles = UserRoles.Admin)]
     public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAllUsers(CancellationToken cancellationToken)
     {
         var users = await _userService.GetAllUsersAsync(cancellationToken);
@@ -75,27 +71,34 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:guid}/role")]
-    //[Authorize(Roles = "admin")]
-    public async Task<IActionResult> UpdateUserRole(Guid id, [FromBody] string role, CancellationToken cancellationToken)
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<IActionResult> UpdateUserRole(
+        Guid id,
+        UserRoleUpdateDto request,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(role))
-            return BadRequest("Rol alanı boş bırakılamaz.");
-
-        var success = await _userService.UpdateUserRoleAsync(id, role, cancellationToken);
-        return success 
-            ? NoContent() 
-            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
+        var outcome = await _userService.UpdateUserRoleAsync(id, request.Role, cancellationToken);
+        return AdminWriteResult(outcome);
     }
 
     [HttpDelete("{id:guid}")]
-    //[Authorize(Roles = "admin")]
+    [Authorize(Roles = UserRoles.Admin)]
     public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
     {
-        var success = await _userService.DeleteUserAsync(id, cancellationToken);
-        return success 
-            ? NoContent() 
-            : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
+        var outcome = await _userService.DeleteUserAsync(id, cancellationToken);
+        return AdminWriteResult(outcome);
     }
+
+    private IActionResult AdminWriteResult(UserAdminWriteOutcome outcome) => outcome switch
+    {
+        UserAdminWriteOutcome.InvalidRole => this.ProblemResult(
+            StatusCodes.Status400BadRequest, "Bad Request", ErrorMessages.InvalidRole),
+        UserAdminWriteOutcome.LastAdmin => this.ProblemResult(
+            StatusCodes.Status409Conflict, "Conflict", ErrorMessages.CannotRemoveLastAdmin),
+        UserAdminWriteOutcome.NotFound => this.ProblemResult(
+            StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound),
+        _ => NoContent()
+    };
 
     private bool TryGetUserId(out Guid userId) =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);

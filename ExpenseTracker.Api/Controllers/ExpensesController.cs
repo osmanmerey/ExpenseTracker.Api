@@ -78,10 +78,11 @@ public class ExpensesController : ControllerBase
     // YÖNETİM PANELİ İÇİN KULLANICI HARCAMALARI
     // ==========================================
     [HttpGet("user/{targetUserId:guid}")]
-    [Authorize(Roles = "admin")]
-    public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetUserExpensesByAdmin(Guid targetUserId, CancellationToken cancellationToken)
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<ActionResult<IEnumerable<ExpenseResponseDto>>> GetUserExpensesByAdmin(
+        Guid targetUserId,
+        CancellationToken cancellationToken)
     {
-        // Admin, URL'den gönderdiği targetUserId sayesinde doğrudan o kişinin harcamalarını çeker
         var expenses = await _expenseService.GetAllAsync(targetUserId, cancellationToken);
         return Ok(expenses);
     }

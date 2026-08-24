@@ -22,4 +22,10 @@ public static class ConfigurationKeys
 
     /// <summary>Dev-only: return reset token in forgot-password JSON. Must stay false in Production.</summary>
     public const string AuthExposeResetTokenInResponse = "Auth:ExposeResetTokenInResponse";
+
+    /// <summary>
+    /// Emails that receive the admin role at registration. Intended for local bootstrap
+    /// (e.g. <c>boss@test.com</c>), not as a production IAM substitute.
+    /// </summary>
+    public const string AuthBootstrapAdminEmails = "Auth:BootstrapAdminEmails";
 }

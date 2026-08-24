@@ -1,3 +1,4 @@
+using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Repositories;
 using ExpenseTracker.Api.Services.Results;
@@ -16,7 +17,7 @@ public class UserService : IUserService
     public async Task<UserResponseDto?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdNoTrackingAsync(userId, cancellationToken);
-        return user is null ? null : ToResponse(user.Id, user.Name, user.Email);
+        return user is null ? null : ToResponse(user.Id, user.Name, user.Email, user.Role);
     }
 
     public async Task<UserUpdateOutcome> UpdateCurrentUserAsync(
@@ -50,43 +51,66 @@ public class UserService : IUserService
         return true;
     }
 
-    // --- YENİ EKLENEN ADMIN METOTLARI ---
-
     public async Task<IEnumerable<UserResponseDto>> GetAllUsersAsync(CancellationToken cancellationToken = default)
     {
-        // Not: IUserRepository içinde GetAllAsync metodu olduğundan emin ol.
-        var users = await _userRepository.GetAllAsync(cancellationToken); 
-        return users.Select(user => ToResponse(user.Id, user.Name, user.Email)).ToList();
+        var users = await _userRepository.GetAllAsync(cancellationToken);
+        return users.Select(user => ToResponse(user.Id, user.Name, user.Email, user.Role)).ToList();
     }
 
-    public async Task<bool> UpdateUserRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default)
+    public async Task<UserAdminWriteOutcome> UpdateUserRoleAsync(
+        Guid userId,
+        string role,
+        CancellationToken cancellationToken = default)
     {
+        if (!UserRoles.IsValid(role))
+            return UserAdminWriteOutcome.InvalidRole;
+
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user is null)
-            return false;
+            return UserAdminWriteOutcome.NotFound;
 
-        // User modelinde 'Role' alanı varsa güncellenir
-        user.Role = role.Trim().ToLowerInvariant(); 
+        var nextRole = UserRoles.Normalize(role);
+        if (UserRoles.IsAdmin(user.Role) && nextRole == UserRoles.User &&
+            await IsLastAdminAsync(userId, cancellationToken))
+        {
+            return UserAdminWriteOutcome.LastAdmin;
+        }
+
+        user.Role = nextRole;
         await _userRepository.SaveChangesAsync(cancellationToken);
-        
-        return true;
+        return UserAdminWriteOutcome.Success;
     }
 
-    public async Task<bool> DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<UserAdminWriteOutcome> DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
         if (user is null)
-            return false;
+            return UserAdminWriteOutcome.NotFound;
+
+        if (UserRoles.IsAdmin(user.Role) && await IsLastAdminAsync(userId, cancellationToken))
+            return UserAdminWriteOutcome.LastAdmin;
 
         _userRepository.Remove(user);
         await _userRepository.SaveChangesAsync(cancellationToken);
-        return true;
+        return UserAdminWriteOutcome.Success;
     }
 
-    private static UserResponseDto ToResponse(Guid id, string name, string email) => new()
+    private async Task<bool> IsLastAdminAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var users = await _userRepository.GetAllAsync(cancellationToken);
+        var adminIds = users
+            .Where(u => UserRoles.IsAdmin(u.Role))
+            .Select(u => u.Id)
+            .ToList();
+
+        return adminIds.Count == 1 && adminIds[0] == userId;
+    }
+
+    private static UserResponseDto ToResponse(Guid id, string name, string email, string role) => new()
     {
         Id = id,
         Name = name,
-        Email = email
+        Email = email,
+        Role = UserRoles.Normalize(role)
     };
 }

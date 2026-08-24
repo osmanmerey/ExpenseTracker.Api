@@ -84,6 +84,7 @@ public class AuthEndpointsTests : IClassFixture<ApiWebApplicationFactory>
         Assert.NotNull(payload);
         Assert.False(string.IsNullOrWhiteSpace(payload!.Token));
         Assert.NotEqual(Guid.Empty, payload.User.Id);
+        Assert.Equal("user", payload.User.Role);
     }
 
     [Fact]

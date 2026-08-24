@@ -34,18 +34,12 @@ public class AuthService : IAuthService
         if (await _userRepository.EmailExistsAsync(normalizedEmail, cancellationToken: cancellationToken))
             return RegisterResult.EmailConflict();
 
-        string assignedRole = "user";
-        if (normalizedEmail == "boss@test.com")
-        {
-            assignedRole = "admin";
-        }
-
         var user = new User
         {
             Name = request.Name.Trim(),
             Email = normalizedEmail,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Role = "admin"
+            Role = ResolveRegistrationRole(normalizedEmail)
         };
 
         await _userRepository.AddAsync(user, cancellationToken);
@@ -102,14 +96,25 @@ public class AuthService : IAuthService
         return ResetPasswordResult.Success();
     }
 
-private string CreateToken(User user)
+    private string ResolveRegistrationRole(string normalizedEmail)
+    {
+        var bootstrapAdmins = _configuration.GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
+            .Get<string[]>() ?? [];
+
+        var isBootstrapAdmin = bootstrapAdmins.Any(candidate =>
+            !string.IsNullOrWhiteSpace(candidate) &&
+            string.Equals(candidate.Trim(), normalizedEmail, StringComparison.OrdinalIgnoreCase));
+
+        return isBootstrapAdmin ? UserRoles.Admin : UserRoles.User;
+    }
+
+    private string CreateToken(User user)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Email),
-            // (Eğer User modelinde rol alanı boşsa varsayılan olarak "user" atıyoruz)
-            new(ClaimTypes.Role, user.Role ?? "user")
+            new(ClaimTypes.Role, UserRoles.Normalize(user.Role))
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration[ConfigurationKeys.JwtKey]!));
@@ -129,6 +134,6 @@ private string CreateToken(User user)
         Id = user.Id,
         Name = user.Name,
         Email = user.Email,
-        Role = user.Role
+        Role = UserRoles.Normalize(user.Role)
     };
 }

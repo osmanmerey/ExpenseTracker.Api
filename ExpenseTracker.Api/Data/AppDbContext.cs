@@ -40,5 +40,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Budget>()
             .HasIndex(b => new { b.UserId, b.Year, b.Month, b.Category })
             .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Role)
+            .HasMaxLength(UserRoles.MaxLength)
+            .HasDefaultValue(UserRoles.User);
     }
 }

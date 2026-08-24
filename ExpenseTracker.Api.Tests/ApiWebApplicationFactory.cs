@@ -38,6 +38,7 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("RateLimiting__AuthPermitLimit", "1000");
         // Dev/test aid only — Production fails fast if this is true (see Program.cs).
         Environment.SetEnvironmentVariable("Auth__ExposeResetTokenInResponse", "true");
+        Environment.SetEnvironmentVariable("Auth__BootstrapAdminEmails__0", "admin@test.com");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
