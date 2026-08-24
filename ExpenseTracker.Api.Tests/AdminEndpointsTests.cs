@@ -2,6 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ExpenseTracker.Api.Common;
+using ExpenseTracker.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace ExpenseTracker.Api.Tests;
@@ -39,6 +43,39 @@ public class AdminEndpointsTests : IDisposable
     {
         var (_, login) = await LoginAsAdminAsync();
         Assert.Equal("admin", login.User.Role);
+    }
+
+    [Fact]
+    public async Task Login_PromotesExistingBootstrapEmail_ToAdmin()
+    {
+        var client = _factory.CreateClient();
+        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            name = "Admin",
+            email = AdminEmail,
+            password = Password
+        });
+        Assert.True(
+            register.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict,
+            $"Unexpected register status {register.StatusCode}: {await register.Content.ReadAsStringAsync()}");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = await db.Users.SingleAsync(u => u.Email == AdminEmail);
+            user.Role = UserRoles.User;
+            await db.SaveChangesAsync();
+        }
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { email = AdminEmail, password = Password });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        var payload = await login.Content.ReadFromJsonAsync<LoginResponse>(new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        Assert.NotNull(payload);
+        Assert.Equal("admin", payload!.User.Role);
     }
 
     [Fact]

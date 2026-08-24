@@ -55,6 +55,11 @@ public class AuthService : IAuthService
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return LoginResult.InvalidCredentials();
 
+        // Registration assigns admin only for bootstrap emails. Promote on login too
+        // so an existing boss@test.com account created as "user" becomes admin.
+        if (TryPromoteBootstrapAdmin(user))
+            await _userRepository.SaveChangesAsync(cancellationToken);
+
         var token = CreateToken(user);
         return LoginResult.Success(token, ToResponse(user));
     }
@@ -96,16 +101,26 @@ public class AuthService : IAuthService
         return ResetPasswordResult.Success();
     }
 
-    private string ResolveRegistrationRole(string normalizedEmail)
+    private string ResolveRegistrationRole(string normalizedEmail) =>
+        IsBootstrapAdminEmail(normalizedEmail) ? UserRoles.Admin : UserRoles.User;
+
+    private bool TryPromoteBootstrapAdmin(User user)
+    {
+        if (UserRoles.IsAdmin(user.Role) || !IsBootstrapAdminEmail(user.Email))
+            return false;
+
+        user.Role = UserRoles.Admin;
+        return true;
+    }
+
+    private bool IsBootstrapAdminEmail(string normalizedEmail)
     {
         var bootstrapAdmins = _configuration.GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
             .Get<string[]>() ?? [];
 
-        var isBootstrapAdmin = bootstrapAdmins.Any(candidate =>
+        return bootstrapAdmins.Any(candidate =>
             !string.IsNullOrWhiteSpace(candidate) &&
             string.Equals(candidate.Trim(), normalizedEmail, StringComparison.OrdinalIgnoreCase));
-
-        return isBootstrapAdmin ? UserRoles.Admin : UserRoles.User;
     }
 
     private string CreateToken(User user)
