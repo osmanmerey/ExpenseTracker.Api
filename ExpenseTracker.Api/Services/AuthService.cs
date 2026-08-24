@@ -116,9 +116,20 @@ public class AuthService : IAuthService
         return true;
     }
 
-    private bool IsBootstrapAdminEmail(string normalizedEmail) =>
-        ReadBootstrapAdminEmails().Any(candidate =>
+    private bool IsBootstrapAdminEmail(string normalizedEmail)
+    {
+        // Original local-admin mailbox from a0a2964 (assignedRole == admin).
+        // Keep this independent of config so InMemory / wrong environment
+        // cannot silently register boss@test.com as a normal user.
+        if (string.Equals(
+                normalizedEmail,
+                AuthBootstrapDefaults.DevelopmentAdminEmail,
+                StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return ReadBootstrapAdminEmails().Any(candidate =>
             string.Equals(candidate, normalizedEmail, StringComparison.OrdinalIgnoreCase));
+    }
 
     private string[] ReadBootstrapAdminEmails()
     {
