@@ -40,12 +40,14 @@ public class BudgetRepository : IBudgetRepository
         Guid? excludeId = null,
         CancellationToken cancellationToken = default)
     {
+        // Case-insensitive match (PostgreSQL default is case-sensitive on =).
+        var key = category.ToLower();
         var query = _context.Budgets.AsNoTracking()
             .Where(b =>
                 b.UserId == userId &&
                 b.Year == year &&
                 b.Month == month &&
-                b.Category == category);
+                b.Category.ToLower() == key);
 
         if (excludeId.HasValue)
             query = query.Where(b => b.Id != excludeId.Value);

@@ -130,7 +130,8 @@ public class BudgetsEndpointsTests : IClassFixture<ApiWebApplicationFactory>
         // USD amount is converted with fixed rate (×47) into TRY spent.
         await client.PostAsJsonAsync("/api/expenses", new
         {
-            title = "[USD] Coffee",
+            title = "Coffee",
+            currency = "USD",
             amount = 10m,
             date = new DateTime(year, month, 8, 12, 0, 0, DateTimeKind.Utc),
             category = "Yemek",

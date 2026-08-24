@@ -2,16 +2,12 @@ using ExpenseTracker.Api.Models;
 
 namespace ExpenseTracker.Api.Repositories;
 
-/// <summary>
-/// Data-access abstraction for <see cref="User"/> entities. Contains no business
-/// rules - only persistence concerns (querying, adding, removing, saving).
-/// </summary>
 public interface IUserRepository
 {
-    /// <summary>Tracked read, suitable for update/delete operations.</summary>
+    Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken = default);
+
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Untracked read, suitable for read-only responses.</summary>
     Task<User?> GetByIdNoTrackingAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<User?> GetByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);

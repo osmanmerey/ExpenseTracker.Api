@@ -4,8 +4,8 @@ using ExpenseTracker.Api.Services.Results;
 namespace ExpenseTracker.Api.Services;
 
 /// <summary>
-/// Business logic for the authenticated user's own profile. Talks to
-/// persistence only through <see cref="Repositories.IUserRepository"/>.
+/// Business logic for the authenticated user's own profile and admin user management.
+/// Talks to persistence only through <see cref="Repositories.IUserRepository"/>.
 /// </summary>
 public interface IUserService
 {
@@ -14,4 +14,10 @@ public interface IUserService
     Task<UserUpdateOutcome> UpdateCurrentUserAsync(Guid userId, UserUpdateDto request, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteCurrentUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<UserResponseDto>> GetAllUsersAsync(CancellationToken cancellationToken = default);
+
+    Task<UserAdminWriteOutcome> UpdateUserRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default);
+
+    Task<UserAdminWriteOutcome> DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }

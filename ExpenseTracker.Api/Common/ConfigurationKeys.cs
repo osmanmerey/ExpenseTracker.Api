@@ -12,9 +12,20 @@ public static class ConfigurationKeys
 
     public const string DatabaseProvider = "Database:Provider";
     public const string DefaultConnectionName = "DefaultConnection";
+    public const string DatabaseCommandTimeoutSeconds = "Database:CommandTimeoutSeconds";
+    public const string ApplyMigrationsOnStartup = "Database:ApplyMigrationsOnStartup";
 
     public const string CorsAllowedOrigins = "Cors:AllowedOrigins";
 
     public const string AuthRateLimitPermitLimit = "RateLimiting:AuthPermitLimit";
     public const string AuthRateLimitWindowSeconds = "RateLimiting:AuthWindowSeconds";
+
+    /// <summary>Dev-only: return reset token in forgot-password JSON. Must stay false in Production.</summary>
+    public const string AuthExposeResetTokenInResponse = "Auth:ExposeResetTokenInResponse";
+
+    /// <summary>
+    /// Emails that receive the admin role at registration. Intended for local bootstrap
+    /// (e.g. <c>boss@test.com</c>), not as a production IAM substitute.
+    /// </summary>
+    public const string AuthBootstrapAdminEmails = "Auth:BootstrapAdminEmails";
 }

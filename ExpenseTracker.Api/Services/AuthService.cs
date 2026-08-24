@@ -38,7 +38,8 @@ public class AuthService : IAuthService
         {
             Name = request.Name.Trim(),
             Email = normalizedEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Role = ResolveRegistrationRole(normalizedEmail)
         };
 
         await _userRepository.AddAsync(user, cancellationToken);
@@ -95,12 +96,25 @@ public class AuthService : IAuthService
         return ResetPasswordResult.Success();
     }
 
+    private string ResolveRegistrationRole(string normalizedEmail)
+    {
+        var bootstrapAdmins = _configuration.GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
+            .Get<string[]>() ?? [];
+
+        var isBootstrapAdmin = bootstrapAdmins.Any(candidate =>
+            !string.IsNullOrWhiteSpace(candidate) &&
+            string.Equals(candidate.Trim(), normalizedEmail, StringComparison.OrdinalIgnoreCase));
+
+        return isBootstrapAdmin ? UserRoles.Admin : UserRoles.User;
+    }
+
     private string CreateToken(User user)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.Email)
+            new(ClaimTypes.Name, user.Email),
+            new(ClaimTypes.Role, UserRoles.Normalize(user.Role))
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration[ConfigurationKeys.JwtKey]!));
@@ -119,6 +133,7 @@ public class AuthService : IAuthService
     {
         Id = user.Id,
         Name = user.Name,
-        Email = user.Email
+        Email = user.Email,
+        Role = UserRoles.Normalize(user.Role)
     };
 }

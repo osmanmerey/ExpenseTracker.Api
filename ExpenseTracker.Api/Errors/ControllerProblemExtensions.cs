@@ -13,17 +13,9 @@ public static class ControllerProblemExtensions
         string title,
         string detail)
     {
-        var traceId = controller.HttpContext.TraceIdentifier;
-        var problem = new ProblemDetails
-        {
-            Status = statusCode,
-            Title = title,
-            Detail = detail,
-            Type = $"https://httpstatuses.com/{statusCode}",
-            Instance = controller.HttpContext.Request.Path,
-            Extensions = { ["traceId"] = traceId }
-        };
-
+        // title kept for call-site readability; canonical title comes from ProblemFactory.
+        _ = title;
+        var problem = ProblemFactory.Create(statusCode, detail, controller.HttpContext);
         return controller.StatusCode(statusCode, problem);
     }
 }

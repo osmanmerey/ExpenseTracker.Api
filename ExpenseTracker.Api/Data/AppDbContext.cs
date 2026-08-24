@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.Api.Data;
 
@@ -25,6 +26,11 @@ public class AppDbContext : DbContext
             .Property(e => e.Kind)
             .HasDefaultValue(TransactionKind.Expense);
 
+        modelBuilder.Entity<Expense>()
+            .Property(e => e.Currency)
+            .HasMaxLength(ValidationConstants.CurrencyCodeLength)
+            .HasDefaultValue("TRY");
+
         modelBuilder.Entity<Budget>()
             .HasOne(b => b.User)
             .WithMany(u => u.Budgets)
@@ -34,5 +40,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Budget>()
             .HasIndex(b => new { b.UserId, b.Year, b.Month, b.Category })
             .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Role)
+            .HasMaxLength(UserRoles.MaxLength)
+            .HasDefaultValue(UserRoles.User);
     }
 }

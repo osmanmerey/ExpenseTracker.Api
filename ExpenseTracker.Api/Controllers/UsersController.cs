@@ -62,6 +62,44 @@ public class UsersController : ControllerBase
             : this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
     }
 
+    [HttpGet]
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetAllUsers(CancellationToken cancellationToken)
+    {
+        var users = await _userService.GetAllUsersAsync(cancellationToken);
+        return Ok(users);
+    }
+
+    [HttpPut("{id:guid}/role")]
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<IActionResult> UpdateUserRole(
+        Guid id,
+        UserRoleUpdateDto request,
+        CancellationToken cancellationToken)
+    {
+        var outcome = await _userService.UpdateUserRoleAsync(id, request.Role, cancellationToken);
+        return AdminWriteResult(outcome);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
+    {
+        var outcome = await _userService.DeleteUserAsync(id, cancellationToken);
+        return AdminWriteResult(outcome);
+    }
+
+    private IActionResult AdminWriteResult(UserAdminWriteOutcome outcome) => outcome switch
+    {
+        UserAdminWriteOutcome.InvalidRole => this.ProblemResult(
+            StatusCodes.Status400BadRequest, "Bad Request", ErrorMessages.InvalidRole),
+        UserAdminWriteOutcome.LastAdmin => this.ProblemResult(
+            StatusCodes.Status409Conflict, "Conflict", ErrorMessages.CannotRemoveLastAdmin),
+        UserAdminWriteOutcome.NotFound => this.ProblemResult(
+            StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound),
+        _ => NoContent()
+    };
+
     private bool TryGetUserId(out Guid userId) =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
 }

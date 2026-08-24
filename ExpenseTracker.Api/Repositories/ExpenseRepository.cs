@@ -20,6 +20,20 @@ public class ExpenseRepository : IExpenseRepository
             .OrderByDescending(e => e.Date)
             .ToListAsync(cancellationToken);
 
+    public Task<List<Expense>> GetForUserInDateRangeNoTrackingAsync(
+        Guid userId,
+        DateTime startInclusive,
+        DateTime endExclusive,
+        CancellationToken cancellationToken = default) =>
+        _context.Expenses
+            .AsNoTracking()
+            .Where(e =>
+                e.UserId == userId &&
+                e.Date >= startInclusive &&
+                e.Date < endExclusive)
+            .OrderByDescending(e => e.Date)
+            .ToListAsync(cancellationToken);
+
     public Task<Expense?> GetByIdNoTrackingAsync(Guid id, Guid userId, CancellationToken cancellationToken = default) =>
         _context.Expenses
             .AsNoTracking()

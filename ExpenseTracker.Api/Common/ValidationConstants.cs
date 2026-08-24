@@ -14,6 +14,8 @@ public static class ValidationConstants
 
     public const int ExpenseTitleMaxLength = 200;
     public const int ExpenseCategoryMaxLength = 100;
+    public const int CurrencyCodeLength = 3;
+    public const int RoleMaxLength = UserRoles.MaxLength;
 
     public const double MinExpenseAmount = 0.01;
 

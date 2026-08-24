@@ -17,5 +17,8 @@ public class ExpenseUpdateDto
     [Required, StringLength(ValidationConstants.ExpenseCategoryMaxLength)]
     public string Category { get; set; } = string.Empty;
 
+    [StringLength(ValidationConstants.CurrencyCodeLength)]
+    public string? Currency { get; set; }
+
     public TransactionKind Kind { get; set; } = TransactionKind.Expense;
 }

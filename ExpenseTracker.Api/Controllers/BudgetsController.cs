@@ -2,6 +2,7 @@ using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Errors;
 using ExpenseTracker.Api.Services;
+using ExpenseTracker.Api.Services.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -33,11 +34,12 @@ public class BudgetsController : ControllerBase
         var y = year ?? now.Year;
         var m = month ?? now.Month;
 
+        // Query params (no DTO) — same bounds as BudgetCreateDto [Range].
         if (m is < ValidationConstants.MinBudgetMonth or > ValidationConstants.MaxBudgetMonth)
-            return this.ProblemResult(StatusCodes.Status400BadRequest, "Bad Request", "Month must be between 1 and 12.");
+            return this.ProblemResult(StatusCodes.Status400BadRequest, "Bad Request", ErrorMessages.BudgetMonthOutOfRange);
 
         if (y is < ValidationConstants.MinBudgetYear or > ValidationConstants.MaxBudgetYear)
-            return this.ProblemResult(StatusCodes.Status400BadRequest, "Bad Request", "Year is out of range.");
+            return this.ProblemResult(StatusCodes.Status400BadRequest, "Bad Request", ErrorMessages.BudgetYearOutOfRange);
 
         return Ok(await _budgetService.GetForPeriodAsync(userId, y, m, cancellationToken));
     }
@@ -63,8 +65,11 @@ public class BudgetsController : ControllerBase
             return this.ProblemResult(StatusCodes.Status401Unauthorized, "Unauthorized", ErrorMessages.Unauthorized);
 
         var (budget, error) = await _budgetService.CreateAsync(userId, request, cancellationToken);
-        if (error is not null)
-            return this.ProblemResult(StatusCodes.Status409Conflict, "Conflict", error);
+        if (error == BudgetWriteError.DuplicateCategoryMonth)
+            return this.ProblemResult(
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                ErrorMessages.BudgetDuplicateCategoryMonth);
 
         return CreatedAtAction(nameof(GetBudget), new { id = budget!.Id }, budget);
     }
@@ -81,8 +86,11 @@ public class BudgetsController : ControllerBase
         var (found, error) = await _budgetService.UpdateAsync(id, userId, request, cancellationToken);
         if (!found)
             return this.ProblemResult(StatusCodes.Status404NotFound, "Not Found", ErrorMessages.NotFound);
-        if (error is not null)
-            return this.ProblemResult(StatusCodes.Status409Conflict, "Conflict", error);
+        if (error == BudgetWriteError.DuplicateCategoryMonth)
+            return this.ProblemResult(
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                ErrorMessages.BudgetDuplicateCategoryMonth);
 
         return NoContent();
     }

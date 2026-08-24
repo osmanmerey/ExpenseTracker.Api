@@ -1,4 +1,5 @@
 using ExpenseTracker.Api.DTOs;
+using ExpenseTracker.Api.Services.Results;
 
 namespace ExpenseTracker.Api.Services;
 
@@ -12,12 +13,12 @@ public interface IBudgetService
 
     Task<BudgetResponseDto?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
 
-    Task<(BudgetResponseDto? Budget, string? Error)> CreateAsync(
+    Task<(BudgetResponseDto? Budget, BudgetWriteError Error)> CreateAsync(
         Guid userId,
         BudgetCreateDto request,
         CancellationToken cancellationToken = default);
 
-    Task<(bool Found, string? Error)> UpdateAsync(
+    Task<(bool Found, BudgetWriteError Error)> UpdateAsync(
         Guid id,
         Guid userId,
         BudgetUpdateDto request,

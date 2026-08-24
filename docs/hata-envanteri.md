@@ -5,40 +5,58 @@
 **Kural:** Tahmin yok — canlı deneme veya bu oturumda PowerShell/Swagger ile doğrulanan davranış.  
 **Not:** PostgreSQL kurulu olmadığı için API denemelerinin bir kısmı `Database__Provider=InMemory` ile yapıldı. Postgres kapalıyken görülen 500+stack ayrıca kaydedildi.
 
+---
+
+## Mentor yönü (Kapı 1 onayı — tüm satırlara uygulanır)
+
+Bu envanterdeki **“Olması gereken”** kolonunu şu ilkeye göre oku:
+
+1. **Kullanıcılar teknik detay görmemeli** (exception metni, stack trace, SQL, iç yol, Npgsql vb.).
+2. **Teknik detaylar loglanmalı** — geliştiriciler `traceId` / log ile takip edip çözebilsin.
+3. **Kullanıcı user-friendly, hatayı açıklayan mesajlar görmeli** — ne olduğu anlaşılsın, ne yapacağı belli olsun.
+4. **Neden:** Teknik detay kullanıcıya bir şey anlatmaz; aynı zamanda sistem hakkında bilgi verir → **güvenlik açığıdır**.
+
+| Katman | Ne gider |
+|--------|----------|
+| Kullanıcı ekranı / API `detail` | Anlaşılır, güvenli mesaj |
+| Log (API + uygulama) | Exception, stack, endpoint, status, `traceId` |
+
+---
+
 | # | Uygulama | Senaryo | Şu anki davranış | Kullanıcının gördüğü | Olması gereken | Öncelik |
 |---|----------|---------|------------------|----------------------|----------------|---------|
-| 1 | API | Geçersiz/eksik veri gönderme | Login: geçersiz email + boş şifre → **400** `application/problem+json` (`type`, `title`, `status`, `errors`, `traceId`). Harcama: `amount` 0 veya negatif → **400** (`errors.Amount`, min 0.01); 0.01 → **201**. | — | Problem Details korunmalı; istemci `errors` okuyabilmeli. | Orta |
-| 2 | Flutter | Geçersiz/eksik veri gönderme | Form yalnızca tutar boş mu diye bakıyor. PowerShell ile API 0/-5’i **400** reddediyor; uygulamada kayıt “başarılı” oldu ve listede **0/negatif satırlar** kaldı. | **0/negatif listede**; başarı mesajı gösterildi. | Client validation + API 400; geçersiz tutar başarı/listede görünmemeli. | Yüksek |
-| 3 | API | Yanlış e-posta veya şifre | InMemory’de doğrulandı (önceki not + servis mesajı): başarısız login → **401**, metin: `E-posta veya şifre hatalı.` (düz metin / Problem Details değil). Bu oturumda ardışık denemeler hızlıca **429**’a düştü. | — | 401 + Problem Details (`detail` = aynı anlamlı mesaj, `traceId`). | Orta |
-| 4 | Flutter | Yanlış e-posta veya şifre | API mesajı okunmuyor; `AuthController` sabit genel metin basıyor. | Snackbar: **“Hata” / “giriş başarısız”** (genel). | API’nin 401 mesajını göster. | Yüksek |
-| 5 | API | Üst üste çok sayıda hatalı giriş | Limit: 5 istek / 60 sn (IP). Aşımda **429**, **body boş**, `Retry-After` yok (bu oturumda gözlendi). Postgres kapalıyken aynı endpoint önce **500+stack** üretebiliyordu. | — | 429 + Problem Details + `Retry-After` (veya eşdeğeri). | Yüksek |
-| 6 | Flutter | Üst üste çok sayıda hatalı giriş | 429 ile 401 aynı genel login hatasına düşüyor (özel “çok deneme / sonra dene” yok). | Genel giriş hatası; rate limit ayrışmıyor. | 429’da ayrı mesaj (+ mümkünse bekleme bilgisi). | Orta |
-| 7 | API | Token yok / geçersiz token | Token yok: `GET /api/Expenses` → **401**, body boş, `WWW-Authenticate: Bearer`. Geçersiz token: **401**, body boş, `WWW-Authenticate: Bearer error="invalid_token"`. Problem Details yok. | — | 401 + Problem Details (`detail` + `traceId`). | Yüksek |
-| 8 | Flutter | Token yok / süresi dolmuş token | Token local’de varsa uygulama listeye giriyor; API 401 olunca repository cache’e düşebiliyor / hata yutuluyor. Süresi dolmuş token için ayrı UI yok. | Çoğunlukla eski liste veya genel hata; “oturum bitti” net değil. | 401’de oturumu temizle + login’e yönlendir / anlaşılır mesaj. | Yüksek |
-| 9 | API | Var olmayan kaydı isteme | `GET /api/Expenses/{olmayan-guid}` (auth’lu) → **404** Problem Details (`type`, `title`, `status`, `traceId`); `detail` yok / body kısa. | — | 404 + Problem Details; isteğe bağlı anlaşılır `detail`. | Orta |
-| 10 | Flutter | Var olmayan kaydı isteme | UI’da doğrudan “olmayan id” akışı yok; API/repo hatası genel catch’e düşer. | Anlaşılır “bulunamadı” yok / genel hata riski. | Kullanıcıya “kayıt bulunamadı” + geri. | Düşük |
-| 11 | API | Başka kullanıcının kaydına erişme | Kullanıcı A’nın expense id’si ile B token’ı → **404** (404 ile aynı Problem Details). 403 değil. | — | Bilinçli tercih: 404 (bilgi sızdırma yok) kabul edilebilir; sözleşmede yazılmalı. | Orta |
-| 12 | Flutter | Başka kullanıcının kaydına erişme | Normal UI başka kullanıcının id’sini istemiyor; özel ekran yok. | — | API 404 ile uyumlu “bulunamadı”. | Düşük |
-| 13 | API | Aynı e-posta ile ikinci kez kayıt | İlk register **201**; ikincisi **409**, body düz metin: `Bu e-posta adresi zaten kullaniliyor.` Problem Details değil. | — | 409 + Problem Details (`detail` aynı mesaj, `traceId`). | Orta |
-| 14 | Flutter | Aynı e-posta ile ikinci kez kayıt | Register hataları da genel mesaja çevriliyor (API 409 metni kullanılmıyor). | Genel kayıt/giriş hatası. | API 409 mesajını göster. | Orta |
-| 15 | API | Veritabanı erişilemez | Postgres kapalı + provider Postgres iken login → **500**, `text/plain`, Developer Exception Page, **Npgsql + stack trace sızıyor**. | — | **503** + Problem Details; stack yok; 500’den ayrı. | Yüksek |
-| 16 | Flutter | Veritabanı erişilemez (API 5xx) | 5xx / ağ hataları repository’de catch → cache veya genel mesaj. | Liste eski kalabilir veya genel hata; “sunucu/veritabanı” ayrımı yok. | Sunucu hatası durumu + retry; stale ise belirt. | Yüksek |
-| 17 | Flutter | API tamamen kapalı — uygulama açıkken | API öldürüldü (5123 kapalı). Hive cache sessizce kullanılıyor. | **Eski liste duruyor; uyarı yok.** | `stale` + “bağlantı yok / güncel değil” + Tekrar dene. | Yüksek |
-| 18 | Flutter | API tamamen kapalı — ilk açılış | Token local’de → liste ekranı; veri cache’ten. | **Eski liste duruyor** (normal görünüm). | `stale`/`error` + retry. | Yüksek |
-| 19 | Flutter | İnternet yok / bağlantı çok yavaş | API kapalı senaryosuyla aynı sınıf: istek fail → cache; timeout için ayrı UI/state yok (http timeout yapılandırması belirgin değil). | Sessiz eski liste veya belirsiz bekleme riski. | Timeout süresi net; timeout/no-network ayrı durum + mesaj + retry. | Yüksek |
-| 20 | API | Beklenmeyen sunucu istisnası | Global handler yok; Development’ta Developer Exception Page (ham exception + stack). Örnek: DB bağlantı hatası **500** olarak bu şekilde sızdı. | — | Merkezi handler → 500 Problem Details; prod’da stack yok; DB için 503 ayrımı. | Yüksek |
-| 21 | Flutter | Beklenmeyen sunucu istisnası | Ham exception UI’ya basılmıyor; çoğu zaman genel mesaj veya sessiz cache. | Genel/yanıltıcı başarı (eski veri). | `serverError` durumu + genel anlaşılır mesaj + retry; ham stack yok. | Yüksek |
+| 1 | API | Geçersiz/eksik veri gönderme | Login: geçersiz email + boş şifre → **400** Problem Details (`errors`, `traceId`). Harcama: 0/negatif → **400** (`errors.Amount`); 0.01 → **201**. | — | User-friendly alan mesajları (`errors`/`detail`); teknik detay yok. Aynı `traceId` log’da. | Orta |
+| 2 | Flutter | Geçersiz/eksik veri gönderme | Form yalnızca boş tutarı kesiyor. API 0/-5’i 400 reddediyor; uygulamada “başarılı” + listede 0/negatif göründü. | **0/negatif listede**; başarı mesajı. | User-friendly “geçersiz tutar” uyarısı; teknik/ham hata yok. Başarı yalnızca gerçek kayıt sonrası. Teknik neden log’da. | Yüksek |
+| 3 | API | Yanlış e-posta veya şifre | **401**, metin: `E-posta veya şifre hatalı.` (düz metin; Problem Details değil). Ardışık denemede **429**. | — | User-friendly `detail` (aynı anlam); stack/exception yok; `traceId` + log. | Orta |
+| 4 | Flutter | Yanlış e-posta veya şifre | API mesajı kullanılmıyor; genel metin. | **“Hata” / “giriş başarısız”** (belirsiz). | User-friendly: örn. “E-posta veya şifre hatalı.” Teknik detay UI’da yok; log’da status/`traceId`. | Yüksek |
+| 5 | API | Üst üste çok hatalı giriş | **429**, body boş, `Retry-After` yok. DB down iken önce 500+stack görülebiliyordu. | — | User-friendly 429 mesajı (+ ne zaman dene); teknik detay yalnızca log. | Yüksek |
+| 6 | Flutter | Üst üste çok hatalı giriş | 429 ile 401 aynı genel mesaja düşüyor. | Genel giriş hatası; rate limit anlaşılmıyor. | User-friendly: “Çok fazla deneme, sonra tekrar deneyin.” Teknik yok; log’da 429. | Orta |
+| 7 | API | Token yok / geçersiz token | **401**, body boş; header’da `WWW-Authenticate`. | — | User-friendly `detail` + `traceId`; boş body ve teknik sızıntı yok. | Yüksek |
+| 8 | Flutter | Token yok / süresi dolmuş token | Cache’e düşme / belirsiz hata; “oturum bitti” net değil. | Eski liste veya belirsiz hata. | User-friendly: “Oturumunuz sona erdi…” + login. Teknik yok; log’da 401/`traceId`. | Yüksek |
+| 9 | API | Var olmayan kayıt | **404** Problem Details; `detail` zayıf/yok. | — | User-friendly `detail` (“Kayıt bulunamadı”); teknik yok; `traceId` log’da. | Orta |
+| 10 | Flutter | Var olmayan kayıt | Genel catch; net mesaj yok. | Anlaşılır “bulunamadı” yok. | User-friendly “Kayıt bulunamadı” + geri. | Düşük |
+| 11 | API | Başka kullanıcının kaydı | **404** (403 değil — varlık sızdırılmaz). | — | User-friendly 404 mesajı (bilinçli); teknik/“yetki detayı” sızdırma. Log’da takip. | Orta |
+| 12 | Flutter | Başka kullanıcının kaydı | Normal UI’da yok. | — | User-friendly “bulunamadı”. | Düşük |
+| 13 | API | Aynı e-posta ile 2. kayıt | **409**, düz metin mesaj. | — | User-friendly `detail` (aynı anlam) + `traceId`; teknik yok. | Orta |
+| 14 | Flutter | Aynı e-posta ile 2. kayıt | API 409 metni kullanılmıyor. | Genel kayıt/giriş hatası. | User-friendly: “Bu e-posta zaten kullanılıyor.” Log’da 409. | Orta |
+| 15 | API | Veritabanı erişilemez | **500** + Developer Exception Page; **Npgsql + stack sızıyor** (kullanıcı/istemci teknik detay görüyor). | — | **503** + user-friendly `detail` (“Servis geçici olarak kullanılamıyor…”). Stack/exception **yanıtta yok**; tam teknik detay **log’da** (`traceId`). Güvenlik: sistem bilgisi sızmasın. | Yüksek |
+| 16 | Flutter | Veritabanı erişilemez (API 5xx) | Cache veya genel/ belirsiz davranış. | Eski liste veya belirsiz durum. | User-friendly sunucu/kesinti mesajı + retry; stale ise belirt. Ham 5xx/stack UI’da yok; log’da. | Yüksek |
+| 17 | Flutter | API kapalı — açıkken | Hive cache sessiz. | **Eski liste; uyarı yok** (kullanıcı hatayı anlamıyor). | User-friendly: “Bağlantı yok / veriler güncel olmayabilir” + Tekrar dene. Teknik yok; log’da bağlantı hatası. | Yüksek |
+| 18 | Flutter | API kapalı — ilk açılış | Cache + token ile liste. | **Eski liste; normal görünüm.** | Aynı user-friendly stale/error mesajı + retry. | Yüksek |
+| 19 | Flutter | İnternet yok / yavaş | Timeout/ayrı UI belirsiz; cache riski. | Sessiz eski liste / belirsiz bekleme. | User-friendly bağlantı/zaman aşımı mesajı + retry. Teknik yok; log’da. | Yüksek |
+| 20 | API | Beklenmeyen sunucu istisnası | Handler yok; istemciye exception + **stack** gidebiliyor. | — | **500** + user-friendly genel `detail`. Stack/exception **yanıtta yok** (güvenlik); **log’da Error** + `traceId`. DB down ile karışmaz (503). | Yüksek |
+| 21 | Flutter | Beklenmeyen sunucu istisnası | Çoğunlukla genel mesaj veya sessiz cache. | Belirsiz / yanıltıcı (eski veri). | User-friendly “Bir sorun oluştu, tekrar deneyin” + retry. Ham exception UI’da yok; log’da. | Yüksek |
 
 ## Öncelik anahtarı
-- **Yüksek:** kullanıcıyı yanıltan veya bilgisiz bırakan
-- **Orta:** yanlış/genel mesaj, ama en azından bir uyarı var
-- **Düşük:** çirkin / teknik ama anlaşılır
+- **Yüksek:** kullanıcıyı yanıltan, bilgisiz bırakan veya teknik detay / güvenlik sızıntısı
+- **Orta:** mesaj var ama yeterince user-friendly değil veya format eksik
+- **Düşük:** nadir UI yolu; yine de user-friendly olmalı
 
-## Mentora özet (Kapı 1)
-En kritik üç bulgu:
-1. Flutter API kapalıyken **sessizce eski liste** gösteriyor.
-2. API DB down iken **500 + stack**; 503 değil.
-3. Flutter API’nin anlamlı mesajlarını kullanmıyor; geçersiz tutarda ise **yanlış başarı** gösterebiliyor.
+## Mentora özet
+1. Kullanıcıya giden teknik sızıntı var (ör. DB down → stack) → güvenlik + anlamsız UX.  
+2. Flutter sessiz eski liste / yanlış başarı → kullanıcı hatayı anlamıyor.  
+3. Anlamlı API mesajları UI’da kullanılmıyor → user-friendly değil.  
+4. Hedef (mentor): **user-friendly mesaj kullanıcıya; teknik detay log’a.**
 
 ## Notlar (deneme sırasında)
 - Yol B: PostgreSQL/Docker yok; InMemory ile auth/expense senaryoları tamamlandı. Postgres-down davranışı ayrı canlı ölçüldü.

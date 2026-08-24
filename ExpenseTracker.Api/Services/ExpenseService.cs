@@ -1,3 +1,4 @@
+using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.DTOs;
 using ExpenseTracker.Api.Models;
 using ExpenseTracker.Api.Repositories;
@@ -27,12 +28,15 @@ public class ExpenseService : IExpenseService
 
     public async Task<ExpenseResponseDto> CreateAsync(Guid userId, ExpenseCreateDto request, CancellationToken cancellationToken = default)
     {
+        var (title, currency) = ResolveTitleAndCurrency(request.Title, request.Currency);
+
         var expense = new Expense
         {
-            Title = request.Title.Trim(),
+            Title = title,
             Amount = request.Amount,
             Date = NormalizeExpenseDate(request.Date),
-            Category = request.Category.Trim(),
+            Category = CategoryNormalizer.Display(request.Category),
+            Currency = currency,
             Kind = request.Kind,
             UserId = userId
         };
@@ -49,10 +53,12 @@ public class ExpenseService : IExpenseService
         if (expense is null)
             return false;
 
-        expense.Title = request.Title.Trim();
+        var (title, currency) = ResolveTitleAndCurrency(request.Title, request.Currency);
+        expense.Title = title;
         expense.Amount = request.Amount;
         expense.Date = NormalizeExpenseDate(request.Date);
-        expense.Category = request.Category.Trim();
+        expense.Category = CategoryNormalizer.Display(request.Category);
+        expense.Currency = currency;
         expense.Kind = request.Kind;
         await _expenseRepository.SaveChangesAsync(cancellationToken);
 
@@ -71,9 +77,21 @@ public class ExpenseService : IExpenseService
     }
 
     /// <summary>
-    /// Store calendar Y/M/D at UTC noon so monthly budgets match the day
-    /// the client intended (avoids timezone day/month shifts).
+    /// Accepts plain title + currency, or legacy <c>[USD] title</c> when currency omitted.
     /// </summary>
+    private static (string Title, string Currency) ResolveTitleAndCurrency(string title, string? currency)
+    {
+        if (!string.IsNullOrWhiteSpace(currency))
+        {
+            return (
+                FixedCurrencyRates.StripCurrencyPrefix(title),
+                FixedCurrencyRates.Normalize(currency));
+        }
+
+        var fromTitle = FixedCurrencyRates.ParseCurrencyCodeFromTitle(title);
+        return (FixedCurrencyRates.StripCurrencyPrefix(title), fromTitle);
+    }
+
     private static DateTime NormalizeExpenseDate(DateTime date) =>
         new(date.Year, date.Month, date.Day, 12, 0, 0, DateTimeKind.Utc);
 
@@ -84,6 +102,7 @@ public class ExpenseService : IExpenseService
         Amount = expense.Amount,
         Date = expense.Date,
         Category = expense.Category,
+        Currency = expense.Currency,
         Kind = expense.Kind
     };
 }
