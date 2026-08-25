@@ -1,3 +1,31 @@
+diff --git a/lib/core/auth/admin_middleware.dart b/lib/core/auth/admin_middleware.dart
+index ffdf694..e176471 100644
+--- a/lib/core/auth/admin_middleware.dart
++++ b/lib/core/auth/admin_middleware.dart
+@@ -3,6 +3,7 @@ import 'package:get/get.dart';
+ 
+ import '../../features/auth/presentation/controllers/auth_controller.dart';
+ import '../routes/app_routes.dart';
++import 'access_messages.dart';
+ 
+ /// Blocks the admin route unless the signed-in user has an admin role.
+ /// Role comparison is case-insensitive (`ADMIN` / `admin`).
+@@ -14,6 +15,15 @@ class AdminMiddleware extends GetMiddleware {
+     }
+     final auth = Get.find<AuthController>();
+     if (!auth.isAdmin) {
++      if (!Get.testMode) {
++        Future.microtask(() {
++          Get.snackbar(
++            AccessMessages.deniedTitle,
++            AccessMessages.deniedBody,
++            snackPosition: SnackPosition.BOTTOM,
++          );
++        });
++      }
+       return const RouteSettings(name: AppRoutes.expenses);
+     }
+     return null;
 diff --git a/lib/core/auth/jwt_claims.dart b/lib/core/auth/jwt_claims.dart
 new file mode 100644
 index 0000000..b1a4e0f
@@ -64,6 +92,47 @@ index 0000000..e155255
 +    return value == user || value == admin;
 +  }
 +}
+diff --git a/lib/core/errors/app_exception.dart b/lib/core/errors/app_exception.dart
+index 90d2a88..1d979f6 100644
+--- a/lib/core/errors/app_exception.dart
++++ b/lib/core/errors/app_exception.dart
+@@ -3,6 +3,7 @@
+ enum AppErrorKind {
+   validation,
+   unauthorized,
++  forbidden,
+   notFound,
+   conflict,
+   tooManyRequests,
+diff --git a/lib/core/network/problem_details.dart b/lib/core/network/problem_details.dart
+index 9e5620f..70d49fb 100644
+--- a/lib/core/network/problem_details.dart
++++ b/lib/core/network/problem_details.dart
+@@ -149,6 +149,7 @@ AppException appExceptionFromError(Object error) {
+ AppErrorKind _kindForStatus(int status) {
+   if (status == 400) return AppErrorKind.validation;
+   if (status == 401) return AppErrorKind.unauthorized;
++  if (status == 403) return AppErrorKind.forbidden;
+   if (status == 404) return AppErrorKind.notFound;
+   if (status == 409) return AppErrorKind.conflict;
+   if (status == 429) return AppErrorKind.tooManyRequests;
+@@ -164,6 +165,7 @@ String _userMessage(AppErrorKind kind, ProblemDetails? problem) {
+       detail.isNotEmpty &&
+       (kind == AppErrorKind.validation ||
+           kind == AppErrorKind.unauthorized ||
++          kind == AppErrorKind.forbidden ||
+           kind == AppErrorKind.notFound ||
+           kind == AppErrorKind.conflict ||
+           kind == AppErrorKind.tooManyRequests);
+@@ -183,6 +185,8 @@ String _userMessage(AppErrorKind kind, ProblemDetails? problem) {
+       return 'Girdiğiniz bilgileri kontrol edin.';
+     case AppErrorKind.unauthorized:
+       return 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.';
++    case AppErrorKind.forbidden:
++      return 'Erişim yetkiniz yok.';
+     case AppErrorKind.notFound:
+       return 'Kayıt bulunamadı.';
+     case AppErrorKind.conflict:
 diff --git a/lib/core/storage/token_storage.dart b/lib/core/storage/token_storage.dart
 index 4388131..46dcd8e 100644
 --- a/lib/core/storage/token_storage.dart
@@ -80,6 +149,137 @@ index 4388131..46dcd8e 100644
  
      await _storage.write(key: _tokenKey, value: token);
      await _storage.write(key: _userIdKey, value: userId);
+diff --git a/lib/features/admin/controllers/admin_controller.dart b/lib/features/admin/controllers/admin_controller.dart
+index 3c0e0c5..ac2973c 100644
+--- a/lib/features/admin/controllers/admin_controller.dart
++++ b/lib/features/admin/controllers/admin_controller.dart
+@@ -1,6 +1,7 @@
+ import 'dart:convert';
+ import 'package:get/get.dart';
+ import 'package:flutter/material.dart';
++import '../../../../core/auth/access_messages.dart';
+ import '../../../../core/network/api_client.dart';
+ 
+ class UserModel {
+@@ -76,15 +77,24 @@ class AdminController extends GetxController {
+   Future<void> fetchUsers() async {
+     isLoading.value = true;
+     try {
+-      final response = await _apiClient.get('/Users');
++      final response = await _apiClient.get('/users');
+       if (response.statusCode == 200) {
+         final List<dynamic> data = jsonDecode(response.body);
+         usersList.value = data.map((e) => UserModel.fromJson(e)).toList();
++        return;
+       }
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        response.statusCode == 403
++            ? AccessMessages.deniedBody
++            : AccessMessages.usersLoadFailed,
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
+     } catch (e) {
+       Get.snackbar(
+-        'Hata',
+-        'Kullanıcılar yüklenemedi',
++        AccessMessages.deniedTitle,
++        AccessMessages.usersLoadFailed,
+         backgroundColor: Colors.redAccent,
+         colorText: Colors.white,
+       );
+@@ -99,7 +109,7 @@ class AdminController extends GetxController {
+     _showExpensesDialog(user.email);
+ 
+     try {
+-      final response = await _apiClient.get('/Expenses/user/${user.id}');
++      final response = await _apiClient.get('/expenses/user/${user.id}');
+       if (response.statusCode == 200) {
+         final List<dynamic> data = jsonDecode(response.body);
+         selectedUserExpenses.value = data
+@@ -322,12 +332,55 @@ class AdminController extends GetxController {
+   }
+ 
+   Future<void> changeRole(String id, String newRole) async {
+-    await _apiClient.put('/Users/$id/role', {'role': newRole});
+-    fetchUsers();
++    try {
++      final response = await _apiClient.put('/users/$id/role', {'role': newRole});
++      if (response.statusCode == 204 || response.statusCode == 200) {
++        await fetchUsers();
++        return;
++      }
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        _adminWriteMessage(response.statusCode),
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    } catch (_) {
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        AccessMessages.roleUpdateFailed,
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    }
+   }
+ 
+   Future<void> deleteUser(String id) async {
+-    await _apiClient.delete('/Users/$id');
+-    fetchUsers();
++    try {
++      final response = await _apiClient.delete('/users/$id');
++      if (response.statusCode == 204 || response.statusCode == 200) {
++        await fetchUsers();
++        return;
++      }
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        _adminWriteMessage(response.statusCode),
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    } catch (_) {
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        AccessMessages.userDeleteFailed,
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    }
++  }
++
++  String _adminWriteMessage(int statusCode) {
++    if (statusCode == 409) return AccessMessages.lastAdmin;
++    if (statusCode == 403) return AccessMessages.deniedBody;
++    if (statusCode == 401) return AccessMessages.sessionExpired;
++    return AccessMessages.roleUpdateFailed;
+   }
+ }
+diff --git a/lib/features/admin/presentation/pages/admin_dashboard_page.dart b/lib/features/admin/presentation/pages/admin_dashboard_page.dart
+index 1ad87dc..a984793 100644
+--- a/lib/features/admin/presentation/pages/admin_dashboard_page.dart
++++ b/lib/features/admin/presentation/pages/admin_dashboard_page.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/material.dart';
+ import 'package:get/get.dart';
+-import '../../controllers/admin_controller.dart'; // Yolu projene göre kontrol etmeyi unutma!
++import '../../../../core/routes/app_routes.dart';
++import '../../controllers/admin_controller.dart';
+ 
+ class AdminDashboardPage extends StatelessWidget {
+   const AdminDashboardPage({Key? key}) : super(key: key);
+@@ -46,7 +47,7 @@ class AdminDashboardPage extends StatelessWidget {
+                     'Ana Sayfaya Dön',
+                     style: TextStyle(color: Colors.white70),
+                   ),
+-                  onTap: () => Get.back(),
++                  onTap: () => Get.offAllNamed(AppRoutes.expenses),
+                 ),
+                 ListTile(
+                   leading: const Icon(Icons.security, color: Colors.blueAccent),
 diff --git a/lib/features/auth/data/repositories/api_auth_repository.dart b/lib/features/auth/data/repositories/api_auth_repository.dart
 index 332d7cb..539dea1 100644
 --- a/lib/features/auth/data/repositories/api_auth_repository.dart
@@ -113,7 +313,7 @@ index 332d7cb..539dea1 100644
 +  }
  }
 diff --git a/lib/features/auth/presentation/controllers/auth_controller.dart b/lib/features/auth/presentation/controllers/auth_controller.dart
-index 1060d68..4bbd344 100644
+index 1060d68..4c81457 100644
 --- a/lib/features/auth/presentation/controllers/auth_controller.dart
 +++ b/lib/features/auth/presentation/controllers/auth_controller.dart
 @@ -1,5 +1,6 @@
@@ -147,7 +347,7 @@ index 1060d68..4bbd344 100644
    Future<void> submitAuthForm({
      required String email,
      required String password,
-@@ -48,11 +53,14 @@ class AuthController extends GetxController {
+@@ -48,11 +53,13 @@ class AuthController extends GetxController {
      }
  
      if (success) {
@@ -162,11 +362,10 @@ index 1060d68..4bbd344 100644
 +      } else {
 +        Get.offAllNamed(AppRoutes.expenses);
 +      }
-+      _showSignedInHint();
      }
    }
  
-@@ -192,6 +200,7 @@ class AuthController extends GetxController {
+@@ -192,6 +199,7 @@ class AuthController extends GetxController {
        isLoading.value = true;
        errorMessage.value = '';
        await _authRepository.logout();
@@ -174,36 +373,25 @@ index 1060d68..4bbd344 100644
        if (Get.isRegistered<ExpenseController>()) {
          Get.find<ExpenseController>().expenses.clear();
        }
-@@ -215,4 +224,24 @@ class AuthController extends GetxController {
+@@ -215,4 +223,5 @@ class AuthController extends GetxController {
        isLoading.value = false;
      }
    }
 +
-+  void _showSignedInHint() {
-+    if (Get.testMode) return;
-+    final roleLabel = UserRoles.normalize(currentUserRole);
-+    if (isAdmin) {
-+      Get.snackbar(
-+        'Yönetici paneli',
-+        'Sağ üstte "Yönetim" yazan butona veya Ayarlar > Yönetici Paneli’ne dokunun.',
-+        snackPosition: SnackPosition.BOTTOM,
-+        duration: const Duration(seconds: 5),
-+      );
-+      return;
-+    }
-+    Get.snackbar(
-+      'Giriş yapıldı',
-+      'Rolünüz: $roleLabel. Admin paneli yalnızca admin rolünde görünür.',
-+      snackPosition: SnackPosition.BOTTOM,
-+      duration: const Duration(seconds: 5),
-+    );
-+  }
  }
 diff --git a/lib/features/expenses/presentation/pages/expenses_page.dart b/lib/features/expenses/presentation/pages/expenses_page.dart
-index 951ae5a..5fb05c3 100644
+index 951ae5a..715f0fc 100644
 --- a/lib/features/expenses/presentation/pages/expenses_page.dart
 +++ b/lib/features/expenses/presentation/pages/expenses_page.dart
-@@ -44,12 +44,21 @@ class ExpensesPage extends StatelessWidget {
+@@ -3,6 +3,7 @@ import 'package:get/get.dart';
+ 
+ import '../../../../core/currency/app_currency.dart';
+ import '../../../../core/l10n/l10n_ext.dart';
++import '../../../../core/auth/access_messages.dart';
+ import '../../../../core/routes/app_routes.dart';
+ import '../../../../core/theme/app_colors.dart';
+ import '../../../../core/theme/app_typography.dart';
+@@ -44,12 +45,21 @@ class ExpensesPage extends StatelessWidget {
        appBar: AppBar(
          title: Text(l10n.transactionsTitle),
          actions: [
@@ -220,8 +408,8 @@ index 951ae5a..5fb05c3 100644
 +                return;
 +              }
 +              Get.snackbar(
-+                'Admin paneli kapalı',
-+                'Rol: ${authController.currentUserRole ?? "yok"} · ${authController.currentUserEmail ?? "email yok"}',
++                AccessMessages.deniedTitle,
++                AccessMessages.deniedBody,
 +                snackPosition: SnackPosition.BOTTOM,
 +              );
 +            },
@@ -448,6 +636,34 @@ index 0000000..fd2cc37
 +    expect(JwtClaims.role(null), isNull);
 +  });
 +}
+diff --git a/test/problem_details_test.dart b/test/problem_details_test.dart
+index 22321f6..3313222 100644
+--- a/test/problem_details_test.dart
++++ b/test/problem_details_test.dart
+@@ -44,6 +44,23 @@ void main() {
+     expect(error.traceId, 't-1');
+   });
+ 
++  test('maps 403 to forbidden access message', () {
++    final response = http.Response.bytes(
++      utf8.encode(jsonEncode({
++        'title': 'Forbidden',
++        'status': 403,
++        'detail': 'Erişim yetkiniz yok.',
++        'traceId': 't-403',
++      })),
++      403,
++      headers: {'content-type': 'application/json; charset=utf-8'},
++    );
++
++    final error = appExceptionFromResponse(response);
++    expect(error.kind, AppErrorKind.forbidden);
++    expect(error.userMessage, 'Erişim yetkiniz yok.');
++  });
++
+   test('maps 500 to generic server message', () {
+     final response = http.Response.bytes(
+       utf8.encode(jsonEncode({
 diff --git a/test/user_roles_test.dart b/test/user_roles_test.dart
 new file mode 100644
 index 0000000..0afaa83

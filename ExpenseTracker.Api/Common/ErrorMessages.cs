@@ -26,7 +26,7 @@ public static class ErrorMessages
     public const string ConnectionStringMissing =
         "ConnectionStrings:DefaultConnection must be configured using user secrets or an environment variable.";
 
-    public const string Forbidden = "Bu işlem için yetkiniz yok.";
+    public const string Forbidden = "Erişim yetkiniz yok.";
     public const string InvalidRole = "Geçersiz rol. Yalnızca user veya admin kabul edilir.";
     public const string CannotRemoveLastAdmin = "Son yönetici hesabı kaldırılamaz veya düşürülemez.";
     public const string BudgetDuplicateCategoryMonth =
