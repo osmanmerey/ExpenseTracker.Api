@@ -264,6 +264,12 @@ if (applyMigrations)
         db.Database.Migrate();
 }
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await BootstrapAdminPromoter.PromoteAsync(db, app.Configuration);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

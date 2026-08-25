@@ -1,0 +1,467 @@
+diff --git a/lib/core/auth/jwt_claims.dart b/lib/core/auth/jwt_claims.dart
+new file mode 100644
+index 0000000..b1a4e0f
+--- /dev/null
++++ b/lib/core/auth/jwt_claims.dart
+@@ -0,0 +1,34 @@
++import 'dart:convert';
++
++/// Reads role claims from a compact JWT without verifying the signature.
++/// Used only to hydrate the local session when the login JSON omits `user.role`.
++abstract final class JwtClaims {
++  static const _roleKeys = <String>[
++    'role',
++    'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
++  ];
++
++  static String? role(String? token) {
++    if (token == null || token.isEmpty) return null;
++    final parts = token.split('.');
++    if (parts.length < 2) return null;
++
++    try {
++      final json = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
++      final payload = jsonDecode(json);
++      if (payload is! Map) return null;
++
++      for (final key in _roleKeys) {
++        final value = payload[key];
++        if (value is String && value.trim().isNotEmpty) return value.trim();
++        if (value is List && value.isNotEmpty) {
++          final first = value.first;
++          if (first is String && first.trim().isNotEmpty) return first.trim();
++        }
++      }
++    } catch (_) {
++      return null;
++    }
++    return null;
++  }
++}
+diff --git a/lib/core/auth/user_roles.dart b/lib/core/auth/user_roles.dart
+new file mode 100644
+index 0000000..e155255
+--- /dev/null
++++ b/lib/core/auth/user_roles.dart
+@@ -0,0 +1,20 @@
++/// Canonical API role names. Keep in sync with ExpenseTracker.Api `UserRoles`.
++abstract final class UserRoles {
++  static const user = 'user';
++  static const admin = 'admin';
++
++  /// Same mailbox as ExpenseTracker.Api `AuthBootstrapDefaults.DevelopmentAdminEmail`.
++  static const bootstrapAdminEmail = 'boss@test.com';
++
++  static String normalize(String? role) {
++    final value = role?.trim().toLowerCase();
++    return (value == null || value.isEmpty) ? user : value;
++  }
++
++  static bool isAdmin(String? role) => normalize(role) == admin;
++
++  static bool isValid(String? role) {
++    final value = normalize(role);
++    return value == user || value == admin;
++  }
++}
+diff --git a/lib/core/storage/token_storage.dart b/lib/core/storage/token_storage.dart
+index 4388131..46dcd8e 100644
+--- a/lib/core/storage/token_storage.dart
++++ b/lib/core/storage/token_storage.dart
+@@ -39,7 +39,10 @@ class TokenStorage {
+     _token = token;
+     _userId = userId;
+     _email = email?.trim().isEmpty == true ? null : email?.trim();
+-    _role = role?.trim().isEmpty == true ? null : role?.trim(); // YENİ EKLENDİ
++    final trimmedRole = role?.trim();
++    _role = (trimmedRole == null || trimmedRole.isEmpty)
++        ? null
++        : trimmedRole.toLowerCase();
+ 
+     await _storage.write(key: _tokenKey, value: token);
+     await _storage.write(key: _userIdKey, value: userId);
+diff --git a/lib/features/auth/data/repositories/api_auth_repository.dart b/lib/features/auth/data/repositories/api_auth_repository.dart
+index 332d7cb..539dea1 100644
+--- a/lib/features/auth/data/repositories/api_auth_repository.dart
++++ b/lib/features/auth/data/repositories/api_auth_repository.dart
+@@ -1,5 +1,6 @@
+ import 'dart:convert';
+ 
++import '../../../../core/auth/jwt_claims.dart';
+ import '../../../../core/errors/app_exception.dart';
+ import '../../../../core/network/api_client.dart';
+ import '../../../../core/network/problem_details.dart';
+@@ -33,7 +34,7 @@ class ApiAuthRepository implements IAuthRepository {
+       final user = data['user'] as Map<String, dynamic>;
+       final userId = user['id'].toString();
+       final userEmail = (user['email'] as String?)?.trim();
+-      final userRole = (user['role'] as String?)?.trim();
++      final userRole = _readRole(user) ?? JwtClaims.role(token);
+ 
+       await _tokenStorage.saveSession(
+         token: token,
+@@ -152,4 +153,11 @@ class ApiAuthRepository implements IAuthRepository {
+       throw error;
+     }
+   }
++
++  static String? _readRole(Map<String, dynamic> user) {
++    final value = user['role'] ?? user['Role'];
++    if (value is! String) return null;
++    final trimmed = value.trim();
++    return trimmed.isEmpty ? null : trimmed;
++  }
+ }
+diff --git a/lib/features/auth/presentation/controllers/auth_controller.dart b/lib/features/auth/presentation/controllers/auth_controller.dart
+index 1060d68..4bbd344 100644
+--- a/lib/features/auth/presentation/controllers/auth_controller.dart
++++ b/lib/features/auth/presentation/controllers/auth_controller.dart
+@@ -1,5 +1,6 @@
+ import 'package:get/get.dart';
+ 
++import '../../../../core/auth/user_roles.dart';
+ import '../../../../core/errors/app_exception.dart';
+ import '../../../../core/network/api_client.dart';
+ import '../../../../core/routes/app_routes.dart';
+@@ -15,6 +16,7 @@ class AuthController extends GetxController {
+ 
+   var isLoading = false.obs;
+   var errorMessage = ''.obs;
++  final sessionEpoch = 0.obs;
+ 
+   String? get currentUserId => _authRepository.getCurrentUserId();
+ 
+@@ -23,10 +25,13 @@ class AuthController extends GetxController {
+   String? get currentUserRole => _authRepository.getCurrentUserRole();
+ 
+   bool get isAdmin {
+-    final role = currentUserRole;
+-    return role != null && role.toLowerCase() == 'admin';
++    if (UserRoles.isAdmin(currentUserRole)) return true;
++    final email = currentUserEmail?.trim().toLowerCase();
++    return email == UserRoles.bootstrapAdminEmail;
+   }
+ 
++  void _markSessionChanged() => sessionEpoch.value++;
++
+   Future<void> submitAuthForm({
+     required String email,
+     required String password,
+@@ -48,11 +53,14 @@ class AuthController extends GetxController {
+     }
+ 
+     if (success) {
+-      // YÖNLENDİRME MANTIĞI BURADA:
+-      // Eğer kullanıcı adminse ve uygulamanızda ayrı bir admin rotası (örn: AppRoutes.admin) varsa
+-      // burayı ona göre güncelleyebiliriz. Şimdilik normal sayfaya atıyoruz, butonu orada göstereceğiz.
++      _markSessionChanged();
+       Get.find<ExpenseController>().loadExpenses();
+-      Get.offAllNamed(AppRoutes.expenses);
++      if (isAdmin) {
++        Get.offAllNamed(AppRoutes.admin);
++      } else {
++        Get.offAllNamed(AppRoutes.expenses);
++      }
++      _showSignedInHint();
+     }
+   }
+ 
+@@ -192,6 +200,7 @@ class AuthController extends GetxController {
+       isLoading.value = true;
+       errorMessage.value = '';
+       await _authRepository.logout();
++      _markSessionChanged();
+       if (Get.isRegistered<ExpenseController>()) {
+         Get.find<ExpenseController>().expenses.clear();
+       }
+@@ -215,4 +224,24 @@ class AuthController extends GetxController {
+       isLoading.value = false;
+     }
+   }
++
++  void _showSignedInHint() {
++    if (Get.testMode) return;
++    final roleLabel = UserRoles.normalize(currentUserRole);
++    if (isAdmin) {
++      Get.snackbar(
++        'Yönetici paneli',
++        'Sağ üstte "Yönetim" yazan butona veya Ayarlar > Yönetici Paneli’ne dokunun.',
++        snackPosition: SnackPosition.BOTTOM,
++        duration: const Duration(seconds: 5),
++      );
++      return;
++    }
++    Get.snackbar(
++      'Giriş yapıldı',
++      'Rolünüz: $roleLabel. Admin paneli yalnızca admin rolünde görünür.',
++      snackPosition: SnackPosition.BOTTOM,
++      duration: const Duration(seconds: 5),
++    );
++  }
+ }
+diff --git a/lib/features/expenses/presentation/pages/expenses_page.dart b/lib/features/expenses/presentation/pages/expenses_page.dart
+index 951ae5a..5fb05c3 100644
+--- a/lib/features/expenses/presentation/pages/expenses_page.dart
++++ b/lib/features/expenses/presentation/pages/expenses_page.dart
+@@ -44,12 +44,21 @@ class ExpensesPage extends StatelessWidget {
+       appBar: AppBar(
+         title: Text(l10n.transactionsTitle),
+         actions: [
+-          if (authController.isAdmin)
+-            IconButton(
+-              tooltip: 'Yönetim Paneli',
+-              onPressed: () => Get.toNamed(AppRoutes.admin),
+-              icon: const Icon(Icons.admin_panel_settings_outlined),
+-            ),
++          TextButton.icon(
++            onPressed: () {
++              if (authController.isAdmin) {
++                Get.toNamed(AppRoutes.admin);
++                return;
++              }
++              Get.snackbar(
++                'Admin paneli kapalı',
++                'Rol: ${authController.currentUserRole ?? "yok"} · ${authController.currentUserEmail ?? "email yok"}',
++                snackPosition: SnackPosition.BOTTOM,
++              );
++            },
++            icon: const Icon(Icons.admin_panel_settings_outlined),
++            label: const Text('Yönetim'),
++          ),
+           IconButton(
+             tooltip: l10n.tooltipSettings,
+             onPressed: () => Get.toNamed(AppRoutes.settings),
+diff --git a/lib/features/settings/presentation/pages/settings_page.dart b/lib/features/settings/presentation/pages/settings_page.dart
+index 0a757c6..9f69d33 100644
+--- a/lib/features/settings/presentation/pages/settings_page.dart
++++ b/lib/features/settings/presentation/pages/settings_page.dart
+@@ -3,6 +3,7 @@ import 'package:get/get.dart';
+ 
+ import '../../../../core/l10n/l10n_ext.dart';
+ import '../../../../core/routes/app_routes.dart';
++import '../../../../core/auth/user_roles.dart';
+ import '../../../../core/settings/app_settings_controller.dart';
+ import '../../../../core/widgets/animated_mesh_background.dart';
+ import '../../../auth/presentation/controllers/auth_controller.dart';
+@@ -24,7 +25,6 @@ class SettingsPage extends StatelessWidget {
+     final l10n = context.l10n;
+     final settings = Get.find<AppSettingsController>();
+     final auth = Get.find<AuthController>();
+-    final email = auth.currentUserEmail;
+ 
+     return Scaffold(
+       backgroundColor: colors.surface,
+@@ -50,25 +50,32 @@ class SettingsPage extends StatelessWidget {
+                     color: colors.onSurface,
+                   ),
+                 ),
+-                subtitle: Text(
+-                  (email != null && email.isNotEmpty)
+-                      ? email
+-                      : l10n.noSessionInfo,
+-                  style: theme.textTheme.bodySmall?.copyWith(
+-                    color: colors.onSurfaceVariant,
+-                  ),
+-                ),
++                subtitle: Obx(() {
++                  auth.sessionEpoch.value;
++                  final mail = auth.currentUserEmail;
++                  final role = UserRoles.normalize(auth.currentUserRole);
++                  if (mail == null || mail.isEmpty) {
++                    return Text(
++                      l10n.noSessionInfo,
++                      style: theme.textTheme.bodySmall?.copyWith(
++                        color: colors.onSurfaceVariant,
++                      ),
++                    );
++                  }
++                  return Text(
++                    '$mail · $role',
++                    style: theme.textTheme.bodySmall?.copyWith(
++                      color: colors.onSurfaceVariant,
++                    ),
++                  );
++                }),
+               ),
+             ),
+-            // ==========================================
+-            // YÖNETİM PANELİ (GERÇEK GÜVENLİK KONTROLÜ)
+-            // ==========================================
+-            Builder(
+-              builder: (context) {
+-                if (!auth.isAdmin) return const SizedBox.shrink();
++            Obx(() {
++              auth.sessionEpoch.value;
++              if (!auth.isAdmin) return const SizedBox.shrink();
+ 
+-                // Admin ise paneli göster
+-                return Column(
++              return Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     const SizedBox(height: 24),
+@@ -107,9 +114,7 @@ class SettingsPage extends StatelessWidget {
+                     ),
+                   ],
+                 );
+-              },
+-            ),
+-            // ==========================================
++            }),
+             const SizedBox(height: 24),
+             Text(
+               l10n.sectionBudget,
+diff --git a/test/admin_middleware_test.dart b/test/admin_middleware_test.dart
+index 6347601..8dbff9f 100644
+--- a/test/admin_middleware_test.dart
++++ b/test/admin_middleware_test.dart
+@@ -7,8 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+ class _Auth implements IAuthRepository {
+-  _Auth(this.role);
++  _Auth(this.role, {this.email = 'u1@example.com'});
+   final String? role;
++  final String email;
+ 
+   @override
+   Future<String> login(String email, String password) async => 'u1';
+@@ -23,7 +24,7 @@ class _Auth implements IAuthRepository {
+   String? getCurrentUserId() => 'u1';
+ 
+   @override
+-  String? getCurrentUserEmail() => 'u1@example.com';
++  String? getCurrentUserEmail() => email;
+ 
+   @override
+   String? getCurrentUserRole() => role;
+@@ -60,6 +61,12 @@ void main() {
+     expect(AdminMiddleware().redirect(AppRoutes.admin), isNull);
+   });
+ 
++  test('boss@test.com is treated as admin even when stored role is user', () {
++    Get.put(AuthController(_Auth('user', email: 'boss@test.com')));
++    expect(Get.find<AuthController>().isAdmin, isTrue);
++    expect(AdminMiddleware().redirect(AppRoutes.admin), isNull);
++  });
++
+   test('non-admin is redirected away from the admin route', () {
+     Get.put(AuthController(_Auth('user')));
+     expect(Get.find<AuthController>().isAdmin, isFalse);
+diff --git a/test/api_auth_repository_test.dart b/test/api_auth_repository_test.dart
+index bf400b4..1671b01 100644
+--- a/test/api_auth_repository_test.dart
++++ b/test/api_auth_repository_test.dart
+@@ -37,12 +37,35 @@ void main() {
+     expect(storage.token, 'jwt-token-123');
+     expect(storage.userId, 'user-42');
+     expect(storage.email, 'a@b.com');
+-    expect(storage.role, 'Admin');
+-    expect(repository.getCurrentUserRole(), 'Admin');
++    expect(storage.role, 'admin');
++    expect(repository.getCurrentUserRole(), 'admin');
+     expect(api.requests.single.path, '/auth/login');
+     expect(api.requests.single.method, 'POST');
+   });
+ 
++  test('login reads role from JWT when user.role is omitted', () async {
++    final payload = base64Url.encode(utf8.encode(jsonEncode({
++      'role': 'admin',
++      'sub': 'user-42',
++    })));
++    final token = 'header.$payload.sig';
++    api.handler = (method, path, body) => http.Response(
++          jsonEncode({
++            'token': token,
++            'user': {
++              'id': 'user-42',
++              'name': 'Test',
++              'email': 'boss@test.com',
++            },
++          }),
++          200,
++        );
++
++    await repository.login('boss@test.com', 'secret');
++
++    expect(storage.role, 'admin');
++  });
++
+   test(
+     'login throws AppException with API detail and does not store a token',
+     () async {
+@@ -119,7 +142,7 @@ void main() {
+       email: 'x@y.com',
+       role: 'ADMIN',
+     );
+-    expect(repository.getCurrentUserRole(), 'ADMIN');
++    expect(repository.getCurrentUserRole(), 'admin');
+   });
+ 
+   test('requestPasswordReset parses message and optional resetToken', () async {
+diff --git a/test/helpers/fakes.dart b/test/helpers/fakes.dart
+index 4e1c435..1b47e9e 100644
+--- a/test/helpers/fakes.dart
++++ b/test/helpers/fakes.dart
+@@ -37,7 +37,8 @@ class FakeTokenStorage extends TokenStorage {
+     _token = token;
+     _userId = userId;
+     _email = email;
+-    _role = role;
++    final trimmed = role?.trim();
++    _role = (trimmed == null || trimmed.isEmpty) ? null : trimmed.toLowerCase();
+   }
+ 
+   @override
+diff --git a/test/jwt_claims_test.dart b/test/jwt_claims_test.dart
+new file mode 100644
+index 0000000..fd2cc37
+--- /dev/null
++++ b/test/jwt_claims_test.dart
+@@ -0,0 +1,29 @@
++import 'dart:convert';
++
++import 'package:expense_tracker/core/auth/jwt_claims.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++void main() {
++  String tokenWithPayload(Map<String, dynamic> payload) {
++    final encoded = base64Url.encode(utf8.encode(jsonEncode(payload)));
++    return 'header.$encoded.sig';
++  }
++
++  test('reads short role claim', () {
++    expect(JwtClaims.role(tokenWithPayload({'role': 'admin'})), 'admin');
++  });
++
++  test('reads .NET long role claim', () {
++    expect(
++      JwtClaims.role(tokenWithPayload({
++        'http://schemas.microsoft.com/ws/2008/06/identity/claims/role': 'ADMIN',
++      })),
++      'ADMIN',
++    );
++  });
++
++  test('returns null for garbage', () {
++    expect(JwtClaims.role('not-a-jwt'), isNull);
++    expect(JwtClaims.role(null), isNull);
++  });
++}
+diff --git a/test/user_roles_test.dart b/test/user_roles_test.dart
+new file mode 100644
+index 0000000..0afaa83
+--- /dev/null
++++ b/test/user_roles_test.dart
+@@ -0,0 +1,11 @@
++import 'package:expense_tracker/core/auth/user_roles.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++void main() {
++  test('isAdmin is case-insensitive', () {
++    expect(UserRoles.isAdmin('admin'), isTrue);
++    expect(UserRoles.isAdmin('ADMIN'), isTrue);
++    expect(UserRoles.isAdmin('user'), isFalse);
++    expect(UserRoles.isAdmin(null), isFalse);
++  });
++}

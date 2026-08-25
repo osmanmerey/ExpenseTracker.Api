@@ -4,7 +4,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ExpenseTracker.Api.Common;
 using ExpenseTracker.Api.Data;
+using ExpenseTracker.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -36,6 +38,37 @@ public class AdminEndpointsTests : IDisposable
         var user = await response.Content.ReadFromJsonAsync<UserSummary>();
         Assert.NotNull(user);
         Assert.Equal("user", user!.Role);
+    }
+
+    [Fact]
+    public async Task StartupPromote_UpgradesExistingBossAccount()
+    {
+        var client = _factory.CreateClient();
+        var email = AuthBootstrapDefaults.DevelopmentAdminEmail;
+        await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            name = "Boss",
+            email,
+            password = Password
+        });
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = await db.Users.SingleAsync(u => u.Email == email);
+            user.Role = UserRoles.User;
+            await db.SaveChangesAsync();
+            await BootstrapAdminPromoter.PromoteAsync(
+                db,
+                scope.ServiceProvider.GetRequiredService<IConfiguration>());
+        }
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = Password });
+        var payload = await login.Content.ReadFromJsonAsync<LoginResponse>(new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        Assert.Equal("admin", payload!.User.Role);
     }
 
     [Fact]
