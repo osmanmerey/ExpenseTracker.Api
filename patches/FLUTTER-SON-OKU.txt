@@ -1,0 +1,37 @@
+Bu klasör, PC’deki C:\expense_tracker üzerine kopyalanacak son Flutter kodudur.
+GitHub expense_tracker reposuna push yok; dosyaları API reposundan al.
+
+1) API reposunu güncelle (pr-repo = osmanmerey/ExpenseTracker.Api):
+
+   cd C:\Users\osmanme\ExpenseTracker.Api
+   git fetch pr-repo cursor/fix-admin-auth-gaps-2136
+   git checkout cursor/fix-admin-auth-gaps-2136
+   git pull pr-repo cursor/fix-admin-auth-gaps-2136
+
+   (origin OsmanSelimMerey ise fetch origin bu dalı bulamaz.)
+
+2) Flutter projesine kopyala (üstüne yazar):
+
+   xcopy /E /Y C:\Users\osmanme\ExpenseTracker.Api\patches\flutter-son\* C:\expense_tracker\
+
+   API git kökü farklıysa patches\flutter-son yolunu kendi klasörüne göre düzelt.
+
+3) Deneme:
+
+   API (ayrı pencerede, açık kalsın):
+     cd C:\Users\osmanme\ExpenseTracker.Api\ExpenseTracker.Api
+     $env:Database__Provider = "InMemory"
+     $env:ASPNETCORE_ENVIRONMENT = "Development"
+     dotnet run --launch-profile http -- --Database:Provider=InMemory
+
+   Kullanıcı uygulaması:
+     cd C:\expense_tracker
+     flutter run -t lib/main.dart
+
+   Paneli denemek için uygulamayı durdur, sonra:
+     flutter run -t lib/main_admin.dart
+
+   VS Code: Run and Debug → Expense Tracker  veya  Admin Panel
+
+4) Hesaplar: kullanıcı uygulamasında kendi mailin; panelde boss@test.com
+   lib\main_admin.dart yoksa kopya adımı tamamlanmamıştır.

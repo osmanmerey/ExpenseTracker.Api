@@ -1,0 +1,217 @@
+{
+  "@@locale": "tr",
+  "appTitle": "Expense Tracker",
+  "language": "Dil",
+  "languageTurkish": "Türkçe",
+  "languageEnglish": "English",
+  "languageSystem": "Sistem dili",
+  "languagePageTitle": "Dil",
+  "languagePageSubtitle": "Uygulama arayüz dili",
+  "settingsTitle": "Profil ve ayarlar",
+  "sectionAccount": "Hesap",
+  "sectionBudget": "Bütçe",
+  "sectionNotifications": "Bildirimler",
+  "sectionAppearance": "Görünüm",
+  "sectionLanguage": "Dil",
+  "userLabel": "Kullanıcı",
+  "noSessionInfo": "Oturum bilgisi yok",
+  "monthlyBudget": "Aylık bütçe",
+  "monthlyBudgetSubtitle": "Genel veya kategori limitlerini yönet",
+  "remindersAndAlerts": "Hatırlatıcı ve uyarılar",
+  "remindersAndAlertsSubtitle": "Günlük hatırlatıcı, bütçe limiti",
+  "darkTheme": "Koyu tema",
+  "darkThemeOn": "Koyu tema açık",
+  "lightThemeOn": "Açık tema açık",
+  "logout": "Çıkış yap",
+  "logoutConfirmTitle": "Çıkış yap",
+  "logoutConfirmBody": "Oturumun kapatılacak. Devam etmek istiyor musun?",
+  "cancel": "Vazgeç",
+  "delete": "Sil",
+  "loggingOut": "Çıkış yapılıyor…",
+  "logoutHint": "Çıkış sonrası giriş ekranına yönlendirilirsin.",
+  "authLoginSubtitle": "Hesabına giriş yap ve harcamalarını takip et.",
+  "authRegisterSubtitle": "Yeni hesap oluşturarak hemen başla.",
+  "login": "Giriş Yap",
+  "register": "Kayıt Ol",
+  "email": "E-posta",
+  "password": "Şifre",
+  "forgotPassword": "Şifremi unuttum",
+  "switchToRegister": "Hesabın yok mu? Kayıt ol",
+  "switchToLogin": "Zaten hesabın var mı? Giriş yap",
+  "transactionsTitle": "Hareketlerim",
+  "tooltipBudget": "Bütçe",
+  "tooltipSettings": "Profil ve ayarlar",
+  "noRecordsYet": "Henüz kayıt yok",
+  "noRecordsHint": "İlk gelir veya giderini ekleyerek takibe başla.",
+  "addRecord": "Kayıt Ekle",
+  "add": "Ekle",
+  "retry": "Tekrar Dene",
+  "netTotalLabel": "Net (gelir − gider)",
+  "income": "Gelir",
+  "expense": "Gider",
+  "kindAll": "Tür: Tümü",
+  "currencyAll": "PB: Tümü",
+  "recordsCount": "{count} kayıt",
+  "@recordsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noFilterMatches": "Filtrelere uyan kayıt yok.",
+  "noCurrencyMatches": "Bu para biriminde kayıt yok.",
+  "deleteExpenseTitle": "Harcamayı sil",
+  "deleteExpenseBody": "\"{category}\" ({currency}) kaydını silmek istediğine emin misin?",
+  "@deleteExpenseBody": {
+    "placeholders": {
+      "category": { "type": "String" },
+      "currency": { "type": "String" }
+    }
+  },
+  "deleted": "Silindi",
+  "expenseDeleted": "Harcama başarıyla silindi.",
+  "saved": "Kaydedildi",
+  "incomeSaved": "Gelir başarıyla kaydedildi.",
+  "expenseSaved": "Gider başarıyla kaydedildi.",
+  "error": "Hata",
+  "editIncome": "Geliri Düzenle",
+  "editExpense": "Gideri Düzenle",
+  "newIncome": "Yeni Gelir",
+  "newExpense": "Yeni Gider",
+  "typeLabel": "Tür",
+  "amount": "Tutar",
+  "currency": "Para birimi",
+  "category": "Kategori",
+  "descriptionOptional": "Açıklama (opsiyonel)",
+  "date": "Tarih",
+  "update": "Güncelle",
+  "save": "Kaydet",
+  "saving": "Kaydediliyor…",
+  "budgetsTitle": "Bütçe",
+  "addBudget": "Bütçe ekle",
+  "noBudgetsThisMonth": "Bu ay için bütçe yok.\nGenel veya kategori limiti ekleyebilirsin.",
+  "overallBudget": "Genel (tüm giderler)",
+  "overall": "Genel",
+  "notificationsTitle": "Bildirimler",
+  "sectionReminders": "Hatırlatıcılar",
+  "dailyReminder": "Günlük hatırlatıcı",
+  "everyDayAt": "Her gün {time}",
+  "@everyDayAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "off": "Kapalı",
+  "hour": "Saat",
+  "budgetOverAlert": "Limit aşımı uyarısı",
+  "budgetOverAlertSubtitle": "Aylık bütçe aşıldığında bildir",
+  "sectionTest": "Test",
+  "sendTestNotification": "Test bildirimi gönder",
+  "testNotificationSubtitle": "İzin ve kanal kurulumunu doğrula",
+  "testNotificationLimited": "Bu platformda sınırlı destek",
+  "notificationsFooter": "Yerel bildirimler cihazında çalışır. Uzak push (FCM) bu fazda yok; web’de destek kısıtlı olabilir.",
+  "permissionRequired": "İzin gerekli",
+  "notificationPermissionDenied": "Bildirim izni verilmedi. Sistem ayarlarından açabilirsin.",
+  "forgotPasswordTitle": "Şifremi unuttum",
+  "resetPasswordTitle": "Şifre sıfırla",
+  "searchHint": "Ara (kategori, açıklama…)",
+  "clearFilters": "Filtreleri temizle",
+  "staleDataMessage": "Bağlantı yok. Gösterilen veriler güncel olmayabilir.",
+  "filters": "Filtreler",
+  "filtersActive": "Filtreler ({count})",
+  "@filtersActive": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "showChart": "Grafiği göster",
+  "hideChart": "Grafiği gizle",
+  "dateRange": "Tarih aralığı",
+  "sortLabel": "Sıralama",
+  "sortDateNewest": "Yeni → eski",
+  "sortDateOldest": "Eski → yeni",
+  "sortAmountHigh": "Tutar ↓",
+  "sortAmountLow": "Tutar ↑",
+  "applyFilters": "Uygula",
+  "connectionErrorTitle": "Bağlantı sorunu",
+  "sessionExpiredTitle": "Oturum sona erdi",
+  "sessionExpiredBody": "Güvenliğiniz için çıkış yapıldı. Lütfen tekrar giriş yapın.",
+  "fxRatesHint": "Toplamlar sabit kurlarla TRY’ye çevrilir",
+  "budgetSpent": "Harcanan {amount}",
+  "@budgetSpent": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetLimit": "Limit {amount}",
+  "@budgetLimit": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetOverBy": "Limit aşıldı ({amount} fazla)",
+  "@budgetOverBy": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetRemaining": "Kalan {amount}",
+  "@budgetRemaining": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetDuplicateCategoryMonth": "Bu kategori ve ay için zaten bir bütçe var.",
+  "chartByCategory": "Kategorilere göre",
+  "chartTotal": "Toplam",
+  "chartEmptyHint": "Henüz grafik oluşturmak için yeterli veri yok.",
+  "notifDailyTitle": "Harcama hatırlatıcısı",
+  "notifDailyBody": "Bugünkü gelir/giderlerini kaydetmeyi unutma.",
+  "notifBudgetTitle": "Bütçe limiti aşıldı",
+  "notifTestTitle": "Test bildirimi",
+  "notifTestBody": "Bildirimler çalışıyor.",
+  "notifUnsupported": "Bu platformda yerel bildirim desteklenmiyor.",
+  "notifLabel": "Bildirim",
+  "adminSection": "Yönetim",
+  "adminPanelTitle": "Yönetim paneli",
+  "adminPanelSubtitle": "Kişisel finansal veri içermeyen operasyonel özet.",
+  "adminUserCountLabel": "Toplam kullanıcı",
+  "adminUserCountValue": "{count} kullanıcı",
+  "@adminUserCountValue": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminSystemStatus": "Sistem durumu",
+  "adminSystemOnline": "API bağlantısı aktif",
+  "adminSystemOffline": "API bağlantısı yok",
+  "adminUsageSummary": "Kullanım özeti",
+  "adminUsageAccounts": "{count} kayıtlı hesap",
+  "@adminUsageAccounts": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminUsageAdmins": "{count} yönetici hesabı",
+  "@adminUsageAdmins": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminUsageEmptyHint": "Gösterilecek operasyonel kayıt yok.",
+  "adminQuickAccess": "Hızlı erişim",
+  "adminOpenTransactions": "Hareketler",
+  "adminOpenBudgets": "Bütçe",
+  "adminOpenSettings": "Ayarlar",
+  "adminPanelEntryTitle": "Yönetici paneli",
+  "adminPanelEntrySubtitle": "Sistem durumu ve operasyonel özet",
+  "adminOverviewLoadFailed": "Özet yüklenemedi. Lütfen tekrar deneyin.",
+  "adminPortalSignIn": "Yönetici paneli",
+  "pageNumber": "{page}",
+  "@pageNumber": {
+    "placeholders": {
+      "page": { "type": "int" }
+    }
+  }
+}
+
+
