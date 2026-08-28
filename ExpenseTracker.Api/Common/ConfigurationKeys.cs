@@ -24,8 +24,8 @@ public static class ConfigurationKeys
     public const string AuthExposeResetTokenInResponse = "Auth:ExposeResetTokenInResponse";
 
     /// <summary>
-    /// Emails that receive the admin role at registration. Intended for local bootstrap
-    /// (e.g. <c>boss@test.com</c>), not as a production IAM substitute.
+    /// Emails that receive the admin role at registration or on subsequent login.
+    /// Intended for local bootstrap (e.g. <c>boss@test.com</c>), not as a production IAM substitute.
     /// </summary>
     public const string AuthBootstrapAdminEmails = "Auth:BootstrapAdminEmails";
 }

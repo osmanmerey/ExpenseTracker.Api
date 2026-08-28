@@ -1,0 +1,246 @@
+{
+  "@@locale": "en",
+  "appTitle": "Expense Tracker",
+  "language": "Language",
+  "languageTurkish": "Türkçe",
+  "languageEnglish": "English",
+  "languageSystem": "System language",
+  "languagePageTitle": "Language",
+  "languagePageSubtitle": "App interface language",
+  "settingsTitle": "Profile & settings",
+  "sectionAccount": "Account",
+  "sectionBudget": "Budget",
+  "sectionNotifications": "Notifications",
+  "sectionAppearance": "Appearance",
+  "sectionLanguage": "Language",
+  "userLabel": "User",
+  "noSessionInfo": "No session info",
+  "monthlyBudget": "Monthly budget",
+  "monthlyBudgetSubtitle": "Manage overall or category limits",
+  "remindersAndAlerts": "Reminders & alerts",
+  "remindersAndAlertsSubtitle": "Daily reminder, budget limits",
+  "darkTheme": "Dark theme",
+  "darkThemeOn": "Dark theme on",
+  "lightThemeOn": "Light theme on",
+  "logout": "Log out",
+  "logoutConfirmTitle": "Are you sure you want to end your session?",
+  "logoutConfirmBody": "You will be signed out of your account. Do you want to continue?",
+  "logoutConfirmAction": "End session",
+  "dialogClose": "Close",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "loggingOut": "Logging out…",
+  "logoutHint": "After logout you will return to the sign-in screen.",
+  "authLoginSubtitle": "Sign in to track your spending.",
+  "authRegisterSubtitle": "Create an account to get started.",
+  "login": "Sign in",
+  "register": "Sign up",
+  "email": "Email",
+  "password": "Password",
+  "forgotPassword": "Forgot password",
+  "switchToRegister": "No account? Sign up",
+  "switchToLogin": "Already have an account? Sign in",
+  "transactionsTitle": "My activity",
+  "tooltipBudget": "Budget",
+  "tooltipSettings": "Profile & settings",
+  "noRecordsYet": "No records yet",
+  "noRecordsHint": "Add your first income or expense to start tracking.",
+  "addRecord": "Add record",
+  "add": "Add",
+  "retry": "Try again",
+  "netTotalLabel": "Net (income − expense)",
+  "income": "Income",
+  "expense": "Expense",
+  "kindAll": "Type: All",
+  "currencyAll": "Currency: All",
+  "recordsCount": "{count} records",
+  "@recordsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noFilterMatches": "No records match the filters.",
+  "noCurrencyMatches": "No records for this currency.",
+  "deleteExpenseTitle": "Delete expense",
+  "deleteExpenseBody": "Delete \"{category}\" ({currency})?",
+  "@deleteExpenseBody": {
+    "placeholders": {
+      "category": { "type": "String" },
+      "currency": { "type": "String" }
+    }
+  },
+  "deleted": "Deleted",
+  "expenseDeleted": "Expense deleted.",
+  "saved": "Saved",
+  "incomeSaved": "Income saved.",
+  "expenseSaved": "Expense saved.",
+  "error": "Error",
+  "editIncome": "Edit income",
+  "editExpense": "Edit expense",
+  "newIncome": "New income",
+  "newExpense": "New expense",
+  "typeLabel": "Type",
+  "amount": "Amount",
+  "currency": "Currency",
+  "category": "Category",
+  "descriptionOptional": "Description (optional)",
+  "date": "Date",
+  "update": "Update",
+  "save": "Save",
+  "saving": "Saving…",
+  "budgetsTitle": "Budget",
+  "addBudget": "Add budget",
+  "noBudgetsThisMonth": "No budgets for this month.\nAdd an overall or category limit.",
+  "overallBudget": "Overall (all expenses)",
+  "overall": "Overall",
+  "notificationsTitle": "Notifications",
+  "sectionReminders": "Reminders",
+  "dailyReminder": "Daily reminder",
+  "everyDayAt": "Every day at {time}",
+  "@everyDayAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "off": "Off",
+  "hour": "Time",
+  "budgetOverAlert": "Over-budget alert",
+  "budgetOverAlertSubtitle": "Notify when a monthly budget is exceeded",
+  "sectionTest": "Test",
+  "sendTestNotification": "Send test notification",
+  "testNotificationSubtitle": "Verify permission and channel setup",
+  "testNotificationLimited": "Limited support on this platform",
+  "notificationsFooter": "Local notifications run on your device. Remote push (FCM) is not in this phase; web support may be limited.",
+  "permissionRequired": "Permission required",
+  "notificationPermissionDenied": "Notification permission was denied. You can enable it in system settings.",
+  "forgotPasswordTitle": "Forgot password",
+  "resetPasswordTitle": "Reset password",
+  "searchHint": "Search (category, description…)",
+  "clearFilters": "Clear filters",
+  "staleDataMessage": "No connection. Shown data may be out of date.",
+  "filters": "Filters",
+  "filtersActive": "Filters ({count})",
+  "@filtersActive": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "showChart": "Show chart",
+  "hideChart": "Hide chart",
+  "dateRange": "Date range",
+  "sortLabel": "Sort",
+  "sortDateNewest": "Newest → oldest",
+  "sortDateOldest": "Oldest → newest",
+  "sortAmountHigh": "Amount ↓",
+  "sortAmountLow": "Amount ↑",
+  "applyFilters": "Apply",
+  "connectionErrorTitle": "Connection problem",
+  "sessionExpiredTitle": "Session expired",
+  "sessionExpiredBody": "You were signed out for security. Please sign in again.",
+  "fxRatesHint": "Totals convert to TRY with fixed rates",
+  "budgetSpent": "Spent {amount}",
+  "@budgetSpent": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetLimit": "Limit {amount}",
+  "@budgetLimit": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetOverBy": "Over budget ({amount} over)",
+  "@budgetOverBy": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetRemaining": "Remaining {amount}",
+  "@budgetRemaining": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "budgetDuplicateCategoryMonth": "A budget already exists for this category and month.",
+  "chartByCategory": "By category",
+  "chartTotal": "Total",
+  "chartEmptyHint": "Not enough data to build a chart yet.",
+  "notifDailyTitle": "Expense reminder",
+  "notifDailyBody": "Don't forget to log today's income and expenses.",
+  "notifBudgetTitle": "Budget limit exceeded",
+  "notifTestTitle": "Test notification",
+  "notifTestBody": "Notifications are working.",
+  "notifUnsupported": "Local notifications are not supported on this platform.",
+  "notifLabel": "Notification",
+  "adminSection": "Admin",
+  "adminPanelTitle": "Admin Panel",
+  "adminPanelSubtitle": "Operational summary with no spending or financial details.",
+  "adminUserCountLabel": "Total users",
+  "adminUsersCardTitle": "Users",
+  "adminUsersAdminsLine": "Admins: {count}",
+  "@adminUsersAdminsLine": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminManageUsersAction": "Add and delete users",
+  "adminManageRolesAction": "Roles and permissions",
+  "adminUsersPageTitle": "Users",
+  "adminRolesPageTitle": "Roles and permissions",
+  "adminUserDetailTitle": "User details",
+  "adminEmailAddress": "Email address",
+  "adminRoleLabel": "Role",
+  "adminRoleUser": "User",
+  "adminRoleAdmin": "Admin",
+  "adminAddUser": "Add user",
+  "adminFullName": "Full name",
+  "adminDeleteUser": "Delete user",
+  "adminDeleteUserTitle": "Are you sure you want to delete this user?",
+  "adminDeleteUserBody": "This cannot be undone. The user will be signed out.",
+  "adminUserCreated": "User added.",
+  "adminUserDeleted": "User deleted.",
+  "adminRoleUpdated": "Role updated.",
+  "adminUnnamedUser": "Unnamed user",
+  "adminNoUsers": "No registered users.",
+  "adminChangeRole": "Save role",
+  "adminSystemStatus": "System status",
+  "adminSystemOnline": "API connection active",
+  "adminSystemOffline": "API unavailable",
+  "adminOverviewLoadFailed": "Could not load the overview. Please try again.",
+  "adminPortalSignIn": "Admin panel",
+  "adminUserCountValue": "{count} users",
+  "@adminUserCountValue": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminUsageSummary": "Usage summary",
+  "adminUsageAccounts": "{count} registered accounts",
+  "@adminUsageAccounts": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminUsageAdmins": "{count} admin accounts",
+  "@adminUsageAdmins": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "adminUsageEmptyHint": "No operational records to show.",
+  "adminQuickAccess": "Quick access",
+  "adminOpenTransactions": "Activity",
+  "adminOpenBudgets": "Budget",
+  "adminOpenSettings": "Settings",
+  "adminPanelEntryTitle": "Admin panel",
+  "adminPanelEntrySubtitle": "System status and operational summary",
+  "pageNumber": "{page}",
+  "@pageNumber": {
+    "placeholders": {
+      "page": { "type": "int" }
+    }
+  }
+}
+
+

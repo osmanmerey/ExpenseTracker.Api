@@ -235,6 +235,23 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+var bootstrapAdmins = builder.Configuration
+    .GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
+    .Get<string[]>()
+    ?.Where(email => !string.IsNullOrWhiteSpace(email))
+    .Select(email => email.Trim())
+    .ToArray() ?? [];
+var inMemory = string.Equals(
+    builder.Configuration[ConfigurationKeys.DatabaseProvider],
+    DatabaseProviders.InMemory,
+    StringComparison.OrdinalIgnoreCase);
+var bootstrapLabel = bootstrapAdmins.Length > 0
+    ? string.Join(", ", bootstrapAdmins)
+    : app.Environment.IsDevelopment() || inMemory
+        ? $"{AuthBootstrapDefaults.DevelopmentAdminEmail} (local default)"
+        : "(none)";
+app.Logger.LogInformation("Auth bootstrap admin emails: {Emails}", bootstrapLabel);
+
 // Auto-migrate only when explicitly enabled (default: Development). Production uses deploy-time `dotnet ef database update`.
 var applyMigrations = builder.Configuration.GetValue(
     ConfigurationKeys.ApplyMigrationsOnStartup,
@@ -245,6 +262,12 @@ if (applyMigrations)
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     if (db.Database.IsRelational())
         db.Database.Migrate();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await BootstrapAdminPromoter.PromoteAsync(db, app.Configuration);
 }
 
 if (app.Environment.IsDevelopment())

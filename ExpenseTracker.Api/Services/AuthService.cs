@@ -17,15 +17,18 @@ public class AuthService : IAuthService
     private readonly IUserRepository _userRepository;
     private readonly IPasswordResetStore _passwordResetStore;
     private readonly IConfiguration _configuration;
+    private readonly IHostEnvironment _environment;
 
     public AuthService(
         IUserRepository userRepository,
         IPasswordResetStore passwordResetStore,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         _userRepository = userRepository;
         _passwordResetStore = passwordResetStore;
         _configuration = configuration;
+        _environment = environment;
     }
 
     public async Task<RegisterResult> RegisterAsync(UserRegisterDto request, CancellationToken cancellationToken = default)
@@ -54,6 +57,11 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return LoginResult.InvalidCredentials();
+
+        // Registration assigns admin only for bootstrap emails. Promote on login too
+        // so an existing boss@test.com account created as "user" becomes admin.
+        if (TryPromoteBootstrapAdmin(user))
+            await _userRepository.SaveChangesAsync(cancellationToken);
 
         var token = CreateToken(user);
         return LoginResult.Success(token, ToResponse(user));
@@ -96,16 +104,57 @@ public class AuthService : IAuthService
         return ResetPasswordResult.Success();
     }
 
-    private string ResolveRegistrationRole(string normalizedEmail)
+    private string ResolveRegistrationRole(string normalizedEmail) =>
+        IsBootstrapAdminEmail(normalizedEmail) ? UserRoles.Admin : UserRoles.User;
+
+    private bool TryPromoteBootstrapAdmin(User user)
     {
-        var bootstrapAdmins = _configuration.GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
+        if (UserRoles.IsAdmin(user.Role) || !IsBootstrapAdminEmail(user.Email))
+            return false;
+
+        user.Role = UserRoles.Admin;
+        return true;
+    }
+
+    private bool IsBootstrapAdminEmail(string normalizedEmail)
+    {
+        // Original local-admin mailbox from a0a2964 (assignedRole == admin).
+        // Keep this independent of config so InMemory / wrong environment
+        // cannot silently register boss@test.com as a normal user.
+        if (string.Equals(
+                normalizedEmail,
+                AuthBootstrapDefaults.DevelopmentAdminEmail,
+                StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return ReadBootstrapAdminEmails().Any(candidate =>
+            string.Equals(candidate, normalizedEmail, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string[] ReadBootstrapAdminEmails()
+    {
+        var configured = _configuration.GetSection(ConfigurationKeys.AuthBootstrapAdminEmails)
             .Get<string[]>() ?? [];
 
-        var isBootstrapAdmin = bootstrapAdmins.Any(candidate =>
-            !string.IsNullOrWhiteSpace(candidate) &&
-            string.Equals(candidate.Trim(), normalizedEmail, StringComparison.OrdinalIgnoreCase));
+        var trimmed = configured
+            .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+            .Select(candidate => candidate.Trim())
+            .ToArray();
 
-        return isBootstrapAdmin ? UserRoles.Admin : UserRoles.User;
+        if (trimmed.Length > 0)
+            return trimmed;
+
+        // Local InMemory / Development runs often skip appsettings.Development.json.
+        // Keep a single well-known bootstrap mailbox so the admin UI can be reached.
+        var inMemory = string.Equals(
+            _configuration[ConfigurationKeys.DatabaseProvider],
+            DatabaseProviders.InMemory,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (_environment.IsDevelopment() || inMemory)
+            return [AuthBootstrapDefaults.DevelopmentAdminEmail];
+
+        return [];
     }
 
     private string CreateToken(User user)

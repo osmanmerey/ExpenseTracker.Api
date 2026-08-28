@@ -1,0 +1,44 @@
+Bu klasör, PC’deki C:\expense_tracker üzerine kopyalanacak son Flutter kodudur.
+GitHub expense_tracker reposuna push yok; dosyaları API reposundan al.
+
+1) API reposunu güncelle (pr-repo = osmanmerey/ExpenseTracker.Api):
+
+   cd C:\Users\osmanme\ExpenseTracker.Api
+   git fetch pr-repo cursor/fix-admin-auth-gaps-2136
+   git checkout cursor/fix-admin-auth-gaps-2136
+   git pull pr-repo cursor/fix-admin-auth-gaps-2136
+
+   (origin OsmanSelimMerey ise fetch origin bu dalı bulamaz.)
+
+2) Flutter projesine kopyala (üstüne yazar):
+
+   xcopy /E /Y C:\Users\osmanme\ExpenseTracker.Api\patches\flutter-son\* C:\expense_tracker\
+
+   API git kökü farklıysa patches\flutter-son yolunu kendi klasörüne göre düzelt.
+
+3) Deneme:
+
+   API (ayrı pencerede, açık kalsın):
+     cd C:\Users\osmanme\ExpenseTracker.Api\ExpenseTracker.Api
+     $env:Database__Provider = "InMemory"
+     $env:ASPNETCORE_ENVIRONMENT = "Development"
+     dotnet run --launch-profile http -- --Database:Provider=InMemory
+
+   Kullanıcı uygulaması (Chrome; emülatör şart değil):
+     cd C:\expense_tracker
+     flutter run -t lib/main.dart -d chrome
+
+   Paneli denemek için uygulamayı durdur (q), sonra:
+     flutter run -t lib/main_admin.dart -d chrome
+
+   VS Code: Run and Debug → Expense Tracker  veya  Admin Panel
+
+4) Yönetim Paneli
+   Giriş: boss@test.com
+   Ana ekranda yalnızca operasyonel özet vardır; harcama/tutar görünmez.
+   “Kullanıcı ekle ve sil” ve “Roller ve yetkiler” ile kullanıcı listesine (yalnızca ad soyad) gidilir.
+   Detayda yalnızca e-posta ve rol vardır.
+   Çıkış, onay modalı ister.
+
+5) Hesaplar: kullanıcı uygulamasında kendi mailin; panelde boss@test.com
+   lib\main_admin.dart yoksa kopya adımı tamamlanmamıştır.

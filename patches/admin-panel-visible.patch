@@ -1,0 +1,683 @@
+diff --git a/lib/core/auth/admin_middleware.dart b/lib/core/auth/admin_middleware.dart
+index ffdf694..e176471 100644
+--- a/lib/core/auth/admin_middleware.dart
++++ b/lib/core/auth/admin_middleware.dart
+@@ -3,6 +3,7 @@ import 'package:get/get.dart';
+ 
+ import '../../features/auth/presentation/controllers/auth_controller.dart';
+ import '../routes/app_routes.dart';
++import 'access_messages.dart';
+ 
+ /// Blocks the admin route unless the signed-in user has an admin role.
+ /// Role comparison is case-insensitive (`ADMIN` / `admin`).
+@@ -14,6 +15,15 @@ class AdminMiddleware extends GetMiddleware {
+     }
+     final auth = Get.find<AuthController>();
+     if (!auth.isAdmin) {
++      if (!Get.testMode) {
++        Future.microtask(() {
++          Get.snackbar(
++            AccessMessages.deniedTitle,
++            AccessMessages.deniedBody,
++            snackPosition: SnackPosition.BOTTOM,
++          );
++        });
++      }
+       return const RouteSettings(name: AppRoutes.expenses);
+     }
+     return null;
+diff --git a/lib/core/auth/jwt_claims.dart b/lib/core/auth/jwt_claims.dart
+new file mode 100644
+index 0000000..b1a4e0f
+--- /dev/null
++++ b/lib/core/auth/jwt_claims.dart
+@@ -0,0 +1,34 @@
++import 'dart:convert';
++
++/// Reads role claims from a compact JWT without verifying the signature.
++/// Used only to hydrate the local session when the login JSON omits `user.role`.
++abstract final class JwtClaims {
++  static const _roleKeys = <String>[
++    'role',
++    'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
++  ];
++
++  static String? role(String? token) {
++    if (token == null || token.isEmpty) return null;
++    final parts = token.split('.');
++    if (parts.length < 2) return null;
++
++    try {
++      final json = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
++      final payload = jsonDecode(json);
++      if (payload is! Map) return null;
++
++      for (final key in _roleKeys) {
++        final value = payload[key];
++        if (value is String && value.trim().isNotEmpty) return value.trim();
++        if (value is List && value.isNotEmpty) {
++          final first = value.first;
++          if (first is String && first.trim().isNotEmpty) return first.trim();
++        }
++      }
++    } catch (_) {
++      return null;
++    }
++    return null;
++  }
++}
+diff --git a/lib/core/auth/user_roles.dart b/lib/core/auth/user_roles.dart
+new file mode 100644
+index 0000000..e155255
+--- /dev/null
++++ b/lib/core/auth/user_roles.dart
+@@ -0,0 +1,20 @@
++/// Canonical API role names. Keep in sync with ExpenseTracker.Api `UserRoles`.
++abstract final class UserRoles {
++  static const user = 'user';
++  static const admin = 'admin';
++
++  /// Same mailbox as ExpenseTracker.Api `AuthBootstrapDefaults.DevelopmentAdminEmail`.
++  static const bootstrapAdminEmail = 'boss@test.com';
++
++  static String normalize(String? role) {
++    final value = role?.trim().toLowerCase();
++    return (value == null || value.isEmpty) ? user : value;
++  }
++
++  static bool isAdmin(String? role) => normalize(role) == admin;
++
++  static bool isValid(String? role) {
++    final value = normalize(role);
++    return value == user || value == admin;
++  }
++}
+diff --git a/lib/core/errors/app_exception.dart b/lib/core/errors/app_exception.dart
+index 90d2a88..1d979f6 100644
+--- a/lib/core/errors/app_exception.dart
++++ b/lib/core/errors/app_exception.dart
+@@ -3,6 +3,7 @@
+ enum AppErrorKind {
+   validation,
+   unauthorized,
++  forbidden,
+   notFound,
+   conflict,
+   tooManyRequests,
+diff --git a/lib/core/network/problem_details.dart b/lib/core/network/problem_details.dart
+index 9e5620f..70d49fb 100644
+--- a/lib/core/network/problem_details.dart
++++ b/lib/core/network/problem_details.dart
+@@ -149,6 +149,7 @@ AppException appExceptionFromError(Object error) {
+ AppErrorKind _kindForStatus(int status) {
+   if (status == 400) return AppErrorKind.validation;
+   if (status == 401) return AppErrorKind.unauthorized;
++  if (status == 403) return AppErrorKind.forbidden;
+   if (status == 404) return AppErrorKind.notFound;
+   if (status == 409) return AppErrorKind.conflict;
+   if (status == 429) return AppErrorKind.tooManyRequests;
+@@ -164,6 +165,7 @@ String _userMessage(AppErrorKind kind, ProblemDetails? problem) {
+       detail.isNotEmpty &&
+       (kind == AppErrorKind.validation ||
+           kind == AppErrorKind.unauthorized ||
++          kind == AppErrorKind.forbidden ||
+           kind == AppErrorKind.notFound ||
+           kind == AppErrorKind.conflict ||
+           kind == AppErrorKind.tooManyRequests);
+@@ -183,6 +185,8 @@ String _userMessage(AppErrorKind kind, ProblemDetails? problem) {
+       return 'Girdiğiniz bilgileri kontrol edin.';
+     case AppErrorKind.unauthorized:
+       return 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.';
++    case AppErrorKind.forbidden:
++      return 'Erişim yetkiniz yok.';
+     case AppErrorKind.notFound:
+       return 'Kayıt bulunamadı.';
+     case AppErrorKind.conflict:
+diff --git a/lib/core/storage/token_storage.dart b/lib/core/storage/token_storage.dart
+index 4388131..46dcd8e 100644
+--- a/lib/core/storage/token_storage.dart
++++ b/lib/core/storage/token_storage.dart
+@@ -39,7 +39,10 @@ class TokenStorage {
+     _token = token;
+     _userId = userId;
+     _email = email?.trim().isEmpty == true ? null : email?.trim();
+-    _role = role?.trim().isEmpty == true ? null : role?.trim(); // YENİ EKLENDİ
++    final trimmedRole = role?.trim();
++    _role = (trimmedRole == null || trimmedRole.isEmpty)
++        ? null
++        : trimmedRole.toLowerCase();
+ 
+     await _storage.write(key: _tokenKey, value: token);
+     await _storage.write(key: _userIdKey, value: userId);
+diff --git a/lib/features/admin/controllers/admin_controller.dart b/lib/features/admin/controllers/admin_controller.dart
+index 3c0e0c5..ac2973c 100644
+--- a/lib/features/admin/controllers/admin_controller.dart
++++ b/lib/features/admin/controllers/admin_controller.dart
+@@ -1,6 +1,7 @@
+ import 'dart:convert';
+ import 'package:get/get.dart';
+ import 'package:flutter/material.dart';
++import '../../../../core/auth/access_messages.dart';
+ import '../../../../core/network/api_client.dart';
+ 
+ class UserModel {
+@@ -76,15 +77,24 @@ class AdminController extends GetxController {
+   Future<void> fetchUsers() async {
+     isLoading.value = true;
+     try {
+-      final response = await _apiClient.get('/Users');
++      final response = await _apiClient.get('/users');
+       if (response.statusCode == 200) {
+         final List<dynamic> data = jsonDecode(response.body);
+         usersList.value = data.map((e) => UserModel.fromJson(e)).toList();
++        return;
+       }
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        response.statusCode == 403
++            ? AccessMessages.deniedBody
++            : AccessMessages.usersLoadFailed,
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
+     } catch (e) {
+       Get.snackbar(
+-        'Hata',
+-        'Kullanıcılar yüklenemedi',
++        AccessMessages.deniedTitle,
++        AccessMessages.usersLoadFailed,
+         backgroundColor: Colors.redAccent,
+         colorText: Colors.white,
+       );
+@@ -99,7 +109,7 @@ class AdminController extends GetxController {
+     _showExpensesDialog(user.email);
+ 
+     try {
+-      final response = await _apiClient.get('/Expenses/user/${user.id}');
++      final response = await _apiClient.get('/expenses/user/${user.id}');
+       if (response.statusCode == 200) {
+         final List<dynamic> data = jsonDecode(response.body);
+         selectedUserExpenses.value = data
+@@ -322,12 +332,55 @@ class AdminController extends GetxController {
+   }
+ 
+   Future<void> changeRole(String id, String newRole) async {
+-    await _apiClient.put('/Users/$id/role', {'role': newRole});
+-    fetchUsers();
++    try {
++      final response = await _apiClient.put('/users/$id/role', {'role': newRole});
++      if (response.statusCode == 204 || response.statusCode == 200) {
++        await fetchUsers();
++        return;
++      }
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        _adminWriteMessage(response.statusCode),
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    } catch (_) {
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        AccessMessages.roleUpdateFailed,
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    }
+   }
+ 
+   Future<void> deleteUser(String id) async {
+-    await _apiClient.delete('/Users/$id');
+-    fetchUsers();
++    try {
++      final response = await _apiClient.delete('/users/$id');
++      if (response.statusCode == 204 || response.statusCode == 200) {
++        await fetchUsers();
++        return;
++      }
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        _adminWriteMessage(response.statusCode),
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    } catch (_) {
++      Get.snackbar(
++        AccessMessages.deniedTitle,
++        AccessMessages.userDeleteFailed,
++        backgroundColor: Colors.redAccent,
++        colorText: Colors.white,
++      );
++    }
++  }
++
++  String _adminWriteMessage(int statusCode) {
++    if (statusCode == 409) return AccessMessages.lastAdmin;
++    if (statusCode == 403) return AccessMessages.deniedBody;
++    if (statusCode == 401) return AccessMessages.sessionExpired;
++    return AccessMessages.roleUpdateFailed;
+   }
+ }
+diff --git a/lib/features/admin/presentation/pages/admin_dashboard_page.dart b/lib/features/admin/presentation/pages/admin_dashboard_page.dart
+index 1ad87dc..a984793 100644
+--- a/lib/features/admin/presentation/pages/admin_dashboard_page.dart
++++ b/lib/features/admin/presentation/pages/admin_dashboard_page.dart
+@@ -1,6 +1,7 @@
+ import 'package:flutter/material.dart';
+ import 'package:get/get.dart';
+-import '../../controllers/admin_controller.dart'; // Yolu projene göre kontrol etmeyi unutma!
++import '../../../../core/routes/app_routes.dart';
++import '../../controllers/admin_controller.dart';
+ 
+ class AdminDashboardPage extends StatelessWidget {
+   const AdminDashboardPage({Key? key}) : super(key: key);
+@@ -46,7 +47,7 @@ class AdminDashboardPage extends StatelessWidget {
+                     'Ana Sayfaya Dön',
+                     style: TextStyle(color: Colors.white70),
+                   ),
+-                  onTap: () => Get.back(),
++                  onTap: () => Get.offAllNamed(AppRoutes.expenses),
+                 ),
+                 ListTile(
+                   leading: const Icon(Icons.security, color: Colors.blueAccent),
+diff --git a/lib/features/auth/data/repositories/api_auth_repository.dart b/lib/features/auth/data/repositories/api_auth_repository.dart
+index 332d7cb..539dea1 100644
+--- a/lib/features/auth/data/repositories/api_auth_repository.dart
++++ b/lib/features/auth/data/repositories/api_auth_repository.dart
+@@ -1,5 +1,6 @@
+ import 'dart:convert';
+ 
++import '../../../../core/auth/jwt_claims.dart';
+ import '../../../../core/errors/app_exception.dart';
+ import '../../../../core/network/api_client.dart';
+ import '../../../../core/network/problem_details.dart';
+@@ -33,7 +34,7 @@ class ApiAuthRepository implements IAuthRepository {
+       final user = data['user'] as Map<String, dynamic>;
+       final userId = user['id'].toString();
+       final userEmail = (user['email'] as String?)?.trim();
+-      final userRole = (user['role'] as String?)?.trim();
++      final userRole = _readRole(user) ?? JwtClaims.role(token);
+ 
+       await _tokenStorage.saveSession(
+         token: token,
+@@ -152,4 +153,11 @@ class ApiAuthRepository implements IAuthRepository {
+       throw error;
+     }
+   }
++
++  static String? _readRole(Map<String, dynamic> user) {
++    final value = user['role'] ?? user['Role'];
++    if (value is! String) return null;
++    final trimmed = value.trim();
++    return trimmed.isEmpty ? null : trimmed;
++  }
+ }
+diff --git a/lib/features/auth/presentation/controllers/auth_controller.dart b/lib/features/auth/presentation/controllers/auth_controller.dart
+index 1060d68..4c81457 100644
+--- a/lib/features/auth/presentation/controllers/auth_controller.dart
++++ b/lib/features/auth/presentation/controllers/auth_controller.dart
+@@ -1,5 +1,6 @@
+ import 'package:get/get.dart';
+ 
++import '../../../../core/auth/user_roles.dart';
+ import '../../../../core/errors/app_exception.dart';
+ import '../../../../core/network/api_client.dart';
+ import '../../../../core/routes/app_routes.dart';
+@@ -15,6 +16,7 @@ class AuthController extends GetxController {
+ 
+   var isLoading = false.obs;
+   var errorMessage = ''.obs;
++  final sessionEpoch = 0.obs;
+ 
+   String? get currentUserId => _authRepository.getCurrentUserId();
+ 
+@@ -23,10 +25,13 @@ class AuthController extends GetxController {
+   String? get currentUserRole => _authRepository.getCurrentUserRole();
+ 
+   bool get isAdmin {
+-    final role = currentUserRole;
+-    return role != null && role.toLowerCase() == 'admin';
++    if (UserRoles.isAdmin(currentUserRole)) return true;
++    final email = currentUserEmail?.trim().toLowerCase();
++    return email == UserRoles.bootstrapAdminEmail;
+   }
+ 
++  void _markSessionChanged() => sessionEpoch.value++;
++
+   Future<void> submitAuthForm({
+     required String email,
+     required String password,
+@@ -48,11 +53,13 @@ class AuthController extends GetxController {
+     }
+ 
+     if (success) {
+-      // YÖNLENDİRME MANTIĞI BURADA:
+-      // Eğer kullanıcı adminse ve uygulamanızda ayrı bir admin rotası (örn: AppRoutes.admin) varsa
+-      // burayı ona göre güncelleyebiliriz. Şimdilik normal sayfaya atıyoruz, butonu orada göstereceğiz.
++      _markSessionChanged();
+       Get.find<ExpenseController>().loadExpenses();
+-      Get.offAllNamed(AppRoutes.expenses);
++      if (isAdmin) {
++        Get.offAllNamed(AppRoutes.admin);
++      } else {
++        Get.offAllNamed(AppRoutes.expenses);
++      }
+     }
+   }
+ 
+@@ -192,6 +199,7 @@ class AuthController extends GetxController {
+       isLoading.value = true;
+       errorMessage.value = '';
+       await _authRepository.logout();
++      _markSessionChanged();
+       if (Get.isRegistered<ExpenseController>()) {
+         Get.find<ExpenseController>().expenses.clear();
+       }
+@@ -215,4 +223,5 @@ class AuthController extends GetxController {
+       isLoading.value = false;
+     }
+   }
++
+ }
+diff --git a/lib/features/expenses/presentation/pages/expenses_page.dart b/lib/features/expenses/presentation/pages/expenses_page.dart
+index 951ae5a..715f0fc 100644
+--- a/lib/features/expenses/presentation/pages/expenses_page.dart
++++ b/lib/features/expenses/presentation/pages/expenses_page.dart
+@@ -3,6 +3,7 @@ import 'package:get/get.dart';
+ 
+ import '../../../../core/currency/app_currency.dart';
+ import '../../../../core/l10n/l10n_ext.dart';
++import '../../../../core/auth/access_messages.dart';
+ import '../../../../core/routes/app_routes.dart';
+ import '../../../../core/theme/app_colors.dart';
+ import '../../../../core/theme/app_typography.dart';
+@@ -44,12 +45,21 @@ class ExpensesPage extends StatelessWidget {
+       appBar: AppBar(
+         title: Text(l10n.transactionsTitle),
+         actions: [
+-          if (authController.isAdmin)
+-            IconButton(
+-              tooltip: 'Yönetim Paneli',
+-              onPressed: () => Get.toNamed(AppRoutes.admin),
+-              icon: const Icon(Icons.admin_panel_settings_outlined),
+-            ),
++          TextButton.icon(
++            onPressed: () {
++              if (authController.isAdmin) {
++                Get.toNamed(AppRoutes.admin);
++                return;
++              }
++              Get.snackbar(
++                AccessMessages.deniedTitle,
++                AccessMessages.deniedBody,
++                snackPosition: SnackPosition.BOTTOM,
++              );
++            },
++            icon: const Icon(Icons.admin_panel_settings_outlined),
++            label: const Text('Yönetim'),
++          ),
+           IconButton(
+             tooltip: l10n.tooltipSettings,
+             onPressed: () => Get.toNamed(AppRoutes.settings),
+diff --git a/lib/features/settings/presentation/pages/settings_page.dart b/lib/features/settings/presentation/pages/settings_page.dart
+index 0a757c6..9f69d33 100644
+--- a/lib/features/settings/presentation/pages/settings_page.dart
++++ b/lib/features/settings/presentation/pages/settings_page.dart
+@@ -3,6 +3,7 @@ import 'package:get/get.dart';
+ 
+ import '../../../../core/l10n/l10n_ext.dart';
+ import '../../../../core/routes/app_routes.dart';
++import '../../../../core/auth/user_roles.dart';
+ import '../../../../core/settings/app_settings_controller.dart';
+ import '../../../../core/widgets/animated_mesh_background.dart';
+ import '../../../auth/presentation/controllers/auth_controller.dart';
+@@ -24,7 +25,6 @@ class SettingsPage extends StatelessWidget {
+     final l10n = context.l10n;
+     final settings = Get.find<AppSettingsController>();
+     final auth = Get.find<AuthController>();
+-    final email = auth.currentUserEmail;
+ 
+     return Scaffold(
+       backgroundColor: colors.surface,
+@@ -50,25 +50,32 @@ class SettingsPage extends StatelessWidget {
+                     color: colors.onSurface,
+                   ),
+                 ),
+-                subtitle: Text(
+-                  (email != null && email.isNotEmpty)
+-                      ? email
+-                      : l10n.noSessionInfo,
+-                  style: theme.textTheme.bodySmall?.copyWith(
+-                    color: colors.onSurfaceVariant,
+-                  ),
+-                ),
++                subtitle: Obx(() {
++                  auth.sessionEpoch.value;
++                  final mail = auth.currentUserEmail;
++                  final role = UserRoles.normalize(auth.currentUserRole);
++                  if (mail == null || mail.isEmpty) {
++                    return Text(
++                      l10n.noSessionInfo,
++                      style: theme.textTheme.bodySmall?.copyWith(
++                        color: colors.onSurfaceVariant,
++                      ),
++                    );
++                  }
++                  return Text(
++                    '$mail · $role',
++                    style: theme.textTheme.bodySmall?.copyWith(
++                      color: colors.onSurfaceVariant,
++                    ),
++                  );
++                }),
+               ),
+             ),
+-            // ==========================================
+-            // YÖNETİM PANELİ (GERÇEK GÜVENLİK KONTROLÜ)
+-            // ==========================================
+-            Builder(
+-              builder: (context) {
+-                if (!auth.isAdmin) return const SizedBox.shrink();
++            Obx(() {
++              auth.sessionEpoch.value;
++              if (!auth.isAdmin) return const SizedBox.shrink();
+ 
+-                // Admin ise paneli göster
+-                return Column(
++              return Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     const SizedBox(height: 24),
+@@ -107,9 +114,7 @@ class SettingsPage extends StatelessWidget {
+                     ),
+                   ],
+                 );
+-              },
+-            ),
+-            // ==========================================
++            }),
+             const SizedBox(height: 24),
+             Text(
+               l10n.sectionBudget,
+diff --git a/test/admin_middleware_test.dart b/test/admin_middleware_test.dart
+index 6347601..8dbff9f 100644
+--- a/test/admin_middleware_test.dart
++++ b/test/admin_middleware_test.dart
+@@ -7,8 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
+ import 'package:get/get.dart';
+ 
+ class _Auth implements IAuthRepository {
+-  _Auth(this.role);
++  _Auth(this.role, {this.email = 'u1@example.com'});
+   final String? role;
++  final String email;
+ 
+   @override
+   Future<String> login(String email, String password) async => 'u1';
+@@ -23,7 +24,7 @@ class _Auth implements IAuthRepository {
+   String? getCurrentUserId() => 'u1';
+ 
+   @override
+-  String? getCurrentUserEmail() => 'u1@example.com';
++  String? getCurrentUserEmail() => email;
+ 
+   @override
+   String? getCurrentUserRole() => role;
+@@ -60,6 +61,12 @@ void main() {
+     expect(AdminMiddleware().redirect(AppRoutes.admin), isNull);
+   });
+ 
++  test('boss@test.com is treated as admin even when stored role is user', () {
++    Get.put(AuthController(_Auth('user', email: 'boss@test.com')));
++    expect(Get.find<AuthController>().isAdmin, isTrue);
++    expect(AdminMiddleware().redirect(AppRoutes.admin), isNull);
++  });
++
+   test('non-admin is redirected away from the admin route', () {
+     Get.put(AuthController(_Auth('user')));
+     expect(Get.find<AuthController>().isAdmin, isFalse);
+diff --git a/test/api_auth_repository_test.dart b/test/api_auth_repository_test.dart
+index bf400b4..1671b01 100644
+--- a/test/api_auth_repository_test.dart
++++ b/test/api_auth_repository_test.dart
+@@ -37,12 +37,35 @@ void main() {
+     expect(storage.token, 'jwt-token-123');
+     expect(storage.userId, 'user-42');
+     expect(storage.email, 'a@b.com');
+-    expect(storage.role, 'Admin');
+-    expect(repository.getCurrentUserRole(), 'Admin');
++    expect(storage.role, 'admin');
++    expect(repository.getCurrentUserRole(), 'admin');
+     expect(api.requests.single.path, '/auth/login');
+     expect(api.requests.single.method, 'POST');
+   });
+ 
++  test('login reads role from JWT when user.role is omitted', () async {
++    final payload = base64Url.encode(utf8.encode(jsonEncode({
++      'role': 'admin',
++      'sub': 'user-42',
++    })));
++    final token = 'header.$payload.sig';
++    api.handler = (method, path, body) => http.Response(
++          jsonEncode({
++            'token': token,
++            'user': {
++              'id': 'user-42',
++              'name': 'Test',
++              'email': 'boss@test.com',
++            },
++          }),
++          200,
++        );
++
++    await repository.login('boss@test.com', 'secret');
++
++    expect(storage.role, 'admin');
++  });
++
+   test(
+     'login throws AppException with API detail and does not store a token',
+     () async {
+@@ -119,7 +142,7 @@ void main() {
+       email: 'x@y.com',
+       role: 'ADMIN',
+     );
+-    expect(repository.getCurrentUserRole(), 'ADMIN');
++    expect(repository.getCurrentUserRole(), 'admin');
+   });
+ 
+   test('requestPasswordReset parses message and optional resetToken', () async {
+diff --git a/test/helpers/fakes.dart b/test/helpers/fakes.dart
+index 4e1c435..1b47e9e 100644
+--- a/test/helpers/fakes.dart
++++ b/test/helpers/fakes.dart
+@@ -37,7 +37,8 @@ class FakeTokenStorage extends TokenStorage {
+     _token = token;
+     _userId = userId;
+     _email = email;
+-    _role = role;
++    final trimmed = role?.trim();
++    _role = (trimmed == null || trimmed.isEmpty) ? null : trimmed.toLowerCase();
+   }
+ 
+   @override
+diff --git a/test/jwt_claims_test.dart b/test/jwt_claims_test.dart
+new file mode 100644
+index 0000000..fd2cc37
+--- /dev/null
++++ b/test/jwt_claims_test.dart
+@@ -0,0 +1,29 @@
++import 'dart:convert';
++
++import 'package:expense_tracker/core/auth/jwt_claims.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++void main() {
++  String tokenWithPayload(Map<String, dynamic> payload) {
++    final encoded = base64Url.encode(utf8.encode(jsonEncode(payload)));
++    return 'header.$encoded.sig';
++  }
++
++  test('reads short role claim', () {
++    expect(JwtClaims.role(tokenWithPayload({'role': 'admin'})), 'admin');
++  });
++
++  test('reads .NET long role claim', () {
++    expect(
++      JwtClaims.role(tokenWithPayload({
++        'http://schemas.microsoft.com/ws/2008/06/identity/claims/role': 'ADMIN',
++      })),
++      'ADMIN',
++    );
++  });
++
++  test('returns null for garbage', () {
++    expect(JwtClaims.role('not-a-jwt'), isNull);
++    expect(JwtClaims.role(null), isNull);
++  });
++}
+diff --git a/test/problem_details_test.dart b/test/problem_details_test.dart
+index 22321f6..3313222 100644
+--- a/test/problem_details_test.dart
++++ b/test/problem_details_test.dart
+@@ -44,6 +44,23 @@ void main() {
+     expect(error.traceId, 't-1');
+   });
+ 
++  test('maps 403 to forbidden access message', () {
++    final response = http.Response.bytes(
++      utf8.encode(jsonEncode({
++        'title': 'Forbidden',
++        'status': 403,
++        'detail': 'Erişim yetkiniz yok.',
++        'traceId': 't-403',
++      })),
++      403,
++      headers: {'content-type': 'application/json; charset=utf-8'},
++    );
++
++    final error = appExceptionFromResponse(response);
++    expect(error.kind, AppErrorKind.forbidden);
++    expect(error.userMessage, 'Erişim yetkiniz yok.');
++  });
++
+   test('maps 500 to generic server message', () {
+     final response = http.Response.bytes(
+       utf8.encode(jsonEncode({
+diff --git a/test/user_roles_test.dart b/test/user_roles_test.dart
+new file mode 100644
+index 0000000..0afaa83
+--- /dev/null
++++ b/test/user_roles_test.dart
+@@ -0,0 +1,11 @@
++import 'package:expense_tracker/core/auth/user_roles.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++void main() {
++  test('isAdmin is case-insensitive', () {
++    expect(UserRoles.isAdmin('admin'), isTrue);
++    expect(UserRoles.isAdmin('ADMIN'), isTrue);
++    expect(UserRoles.isAdmin('user'), isFalse);
++    expect(UserRoles.isAdmin(null), isFalse);
++  });
++}
