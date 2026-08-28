@@ -24,14 +24,21 @@ GitHub expense_tracker reposuna push yok; dosyaları API reposundan al.
      $env:ASPNETCORE_ENVIRONMENT = "Development"
      dotnet run --launch-profile http -- --Database:Provider=InMemory
 
-   Kullanıcı uygulaması:
+   Kullanıcı uygulaması (Chrome; emülatör şart değil):
      cd C:\expense_tracker
-     flutter run -t lib/main.dart
+     flutter run -t lib/main.dart -d chrome
 
-   Paneli denemek için uygulamayı durdur, sonra:
-     flutter run -t lib/main_admin.dart
+   Paneli denemek için uygulamayı durdur (q), sonra:
+     flutter run -t lib/main_admin.dart -d chrome
 
    VS Code: Run and Debug → Expense Tracker  veya  Admin Panel
 
-4) Hesaplar: kullanıcı uygulamasında kendi mailin; panelde boss@test.com
+4) Yönetim Paneli
+   Giriş: boss@test.com
+   Ana ekranda yalnızca operasyonel özet vardır; harcama/tutar görünmez.
+   “Kullanıcı ekle ve sil” ve “Roller ve yetkiler” ile kullanıcı listesine (yalnızca ad soyad) gidilir.
+   Detayda yalnızca e-posta ve rol vardır.
+   Çıkış, onay modalı ister.
+
+5) Hesaplar: kullanıcı uygulamasında kendi mailin; panelde boss@test.com
    lib\main_admin.dart yoksa kopya adımı tamamlanmamıştır.

@@ -39,6 +39,9 @@ void main() {
       containsAll([
         AppRoutes.auth,
         AppRoutes.admin,
+        AppRoutes.adminUsers,
+        AppRoutes.adminRoles,
+        AppRoutes.adminUserDetail,
         AppRoutes.forgotPassword,
         AppRoutes.resetPassword,
       ]),

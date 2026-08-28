@@ -78,10 +78,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logout => 'Log out';
 
   @override
-  String get logoutConfirmTitle => 'Log out';
+  String get logoutConfirmTitle => 'Are you sure you want to end your session?';
 
   @override
-  String get logoutConfirmBody => 'Your session will end. Continue?';
+  String get logoutConfirmBody =>
+      'You will be signed out of your account. Do you want to continue?';
+
+  @override
+  String get logoutConfirmAction => 'End session';
+
+  @override
+  String get dialogClose => 'Close';
 
   @override
   String get cancel => 'Cancel';
@@ -161,7 +168,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kindAll => 'Type: All';
 
   @override
-  String get currencyAll => 'FX: All';
+  String get currencyAll => 'Currency: All';
 
   @override
   String recordsCount(int count) {
@@ -342,10 +349,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sortLabel => 'Sort';
 
   @override
-  String get sortDateNewest => 'Newest first';
+  String get sortDateNewest => 'Newest → oldest';
 
   @override
-  String get sortDateOldest => 'Oldest first';
+  String get sortDateOldest => 'Oldest → newest';
 
   @override
   String get sortAmountHigh => 'Amount ↓';
@@ -429,19 +436,84 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminSection => 'Admin';
 
   @override
-  String get adminPanelTitle => 'Admin panel';
+  String get adminPanelTitle => 'Admin Panel';
 
   @override
   String get adminPanelSubtitle =>
-      'Operational summary with no personal financial data.';
+      'Operational summary with no spending or financial details.';
 
   @override
   String get adminUserCountLabel => 'Total users';
 
   @override
-  String adminUserCountValue(int count) {
-    return '$count users';
+  String get adminUsersCardTitle => 'Users';
+
+  @override
+  String adminUsersAdminsLine(int count) {
+    return 'Admins: $count';
   }
+
+  @override
+  String get adminManageUsersAction => 'Add and delete users';
+
+  @override
+  String get adminManageRolesAction => 'Roles and permissions';
+
+  @override
+  String get adminUsersPageTitle => 'Users';
+
+  @override
+  String get adminRolesPageTitle => 'Roles and permissions';
+
+  @override
+  String get adminUserDetailTitle => 'User details';
+
+  @override
+  String get adminEmailAddress => 'Email address';
+
+  @override
+  String get adminRoleLabel => 'Role';
+
+  @override
+  String get adminRoleUser => 'User';
+
+  @override
+  String get adminRoleAdmin => 'Admin';
+
+  @override
+  String get adminAddUser => 'Add user';
+
+  @override
+  String get adminFullName => 'Full name';
+
+  @override
+  String get adminDeleteUser => 'Delete user';
+
+  @override
+  String get adminDeleteUserTitle =>
+      'Are you sure you want to delete this user?';
+
+  @override
+  String get adminDeleteUserBody =>
+      'This cannot be undone. The user will be signed out.';
+
+  @override
+  String get adminUserCreated => 'User added.';
+
+  @override
+  String get adminUserDeleted => 'User deleted.';
+
+  @override
+  String get adminRoleUpdated => 'Role updated.';
+
+  @override
+  String get adminUnnamedUser => 'Unnamed user';
+
+  @override
+  String get adminNoUsers => 'No registered users.';
+
+  @override
+  String get adminChangeRole => 'Save role';
 
   @override
   String get adminSystemStatus => 'System status';
@@ -451,6 +523,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminSystemOffline => 'API unavailable';
+
+  @override
+  String get adminOverviewLoadFailed =>
+      'Could not load the overview. Please try again.';
+
+  @override
+  String get adminPortalSignIn => 'Admin panel';
+
+  @override
+  String adminUserCountValue(int count) {
+    return '$count users';
+  }
 
   @override
   String get adminUsageSummary => 'Usage summary';
@@ -485,13 +569,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get adminPanelEntrySubtitle => 'System status and operational summary';
-
-  @override
-  String get adminOverviewLoadFailed =>
-      'Could not load the overview. Please try again.';
-
-  @override
-  String get adminPortalSignIn => 'Admin panel';
 
   @override
   String pageNumber(int page) {

@@ -7,6 +7,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/animated_mesh_background.dart';
+import '../../../../core/widgets/app_filter_chip.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/transaction_kind.dart';
 import '../controllers/expense_controller.dart';
@@ -337,82 +338,47 @@ class _ExpensesScrollBodyState extends State<_ExpensesScrollBody> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Obx(() {
-                      final kind = controller.kindFilter.value;
-                      return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _fixedFilterChip(
-                              label: Text(l10n.kindAll),
-                              selected: kind == null,
-                              onSelected: (selected) {
-                                if (selected) controller.setKindFilter(null);
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            _fixedFilterChip(
-                              label: Text(l10n.expense),
-                              selected: kind == TransactionKind.expense,
-                              onSelected: (selected) =>
-                                  controller.setKindFilter(
-                                    selected ? TransactionKind.expense : null,
-                                  ),
-                            ),
-                            const SizedBox(width: 8),
-                            _fixedFilterChip(
-                              label: Text(l10n.income),
-                              selected: kind == TransactionKind.income,
-                              onSelected: (selected) =>
-                                  controller.setKindFilter(
-                                    selected ? TransactionKind.income : null,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ),
-                  Obx(() {
-                    final count = controller.advancedFilterCount;
-                    final open = controller.showFiltersPanel.value;
-                    return TextButton(
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(0, 40),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                        iconSize: _kFilterIconSize,
+              child: Obx(() {
+                final kind = controller.kindFilter.value;
+                final count = controller.advancedFilterCount;
+                final open = controller.showFiltersPanel.value;
+                return Wrap(
+                  spacing: AppFilterMetrics.groupGap,
+                  runSpacing: AppFilterMetrics.groupGap,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    AppFilterChip(
+                      label: l10n.kindAll,
+                      selected: kind == null,
+                      onSelected: (selected) {
+                        if (selected) controller.setKindFilter(null);
+                      },
+                    ),
+                    AppFilterChip(
+                      label: l10n.expense,
+                      selected: kind == TransactionKind.expense,
+                      onSelected: (selected) => controller.setKindFilter(
+                        selected ? TransactionKind.expense : null,
                       ),
-                      onPressed: controller.toggleFiltersPanel,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Badge(
-                            isLabelVisible: count > 0,
-                            label: Text('$count'),
-                            child: _FixedFilterIcon(
-                              Icons.tune,
-                              color: open ? colors.primary : null,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            count > 0
-                                ? l10n.filtersActive(count)
-                                : l10n.filters,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                    ),
+                    AppFilterChip(
+                      label: l10n.income,
+                      selected: kind == TransactionKind.income,
+                      onSelected: (selected) => controller.setKindFilter(
+                        selected ? TransactionKind.income : null,
                       ),
-                    );
-                  }),
-                ],
-              ),
+                    ),
+                    AppFilterChip(
+                      label: count > 0
+                          ? l10n.filtersActive(count)
+                          : l10n.filters,
+                      selected: open,
+                      leadingIcon: Icons.tune,
+                      onSelected: (_) => controller.toggleFiltersPanel(),
+                    ),
+                  ],
+                );
+              }),
             ),
           ),
           SliverToBoxAdapter(
@@ -792,26 +758,22 @@ class _FiltersPanelState extends State<_FiltersPanel> {
             Obx(() {
               final selected = controller.currencyFilter.value;
               return Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AppFilterMetrics.groupGap,
+                runSpacing: AppFilterMetrics.groupGap,
                 children: [
-                  FilterChip(
-                    label: Text(l10n.currencyAll),
+                  AppFilterChip(
+                    label: l10n.currencyAll,
                     selected: selected == null,
                     onSelected: (selectedChip) {
                       if (selectedChip) controller.setCurrencyFilter(null);
                     },
-                    avatarBoxConstraints: _filterAvatarConstraints,
-                    iconTheme: _filterIconTheme,
                   ),
                   for (final c in AppCurrency.values)
-                    FilterChip(
-                      label: Text(c.code),
+                    AppFilterChip(
+                      label: c.code,
                       selected: selected == c,
                       onSelected: (selectedChip) =>
                           controller.setCurrencyFilter(selectedChip ? c : null),
-                      avatarBoxConstraints: _filterAvatarConstraints,
-                      iconTheme: _filterIconTheme,
                     ),
                 ],
               );
@@ -821,40 +783,24 @@ class _FiltersPanelState extends State<_FiltersPanel> {
               final from = controller.dateFrom.value;
               final to = controller.dateTo.value;
               final hasRange = from != null && to != null;
-              return Row(
+              return Wrap(
+                spacing: AppFilterMetrics.groupGap,
+                runSpacing: AppFilterMetrics.groupGap,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _pickDateRange,
-                      style: OutlinedButton.styleFrom(
-                        iconSize: _kFilterIconSize,
-                      ),
-                      child: Row(
-                        children: [
-                          const _FixedFilterIcon(Icons.date_range_outlined),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              hasRange
-                                  ? '${_formatDay(from)} – ${_formatDay(to)}'
-                                  : l10n.dateRange,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  AppFilterActionButton(
+                    label: hasRange
+                        ? '${_formatDay(from)} – ${_formatDay(to)}'
+                        : l10n.dateRange,
+                    selected: hasRange,
+                    onPressed: _pickDateRange,
                   ),
-                  if (hasRange) ...[
-                    const SizedBox(width: 8),
-                    IconButton(
+                  if (hasRange)
+                    AppFilterActionButton(
+                      label: l10n.clearFilters,
+                      icon: Icons.event_busy_outlined,
                       onPressed: () => controller.setDateRange(),
-                      icon: const _FixedFilterIcon(Icons.event_busy_outlined),
-                      iconSize: _kFilterIconSize,
-                      visualDensity: VisualDensity.compact,
                     ),
-                  ],
                 ],
               );
             }),
@@ -870,18 +816,16 @@ class _FiltersPanelState extends State<_FiltersPanel> {
                 (ExpenseSortMode.amountLow, l10n.sortAmountLow),
               ];
               return Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AppFilterMetrics.groupGap,
+                runSpacing: AppFilterMetrics.groupGap,
                 children: [
                   for (final entry in options)
-                    ChoiceChip(
-                      label: Text(entry.$2),
+                    AppFilterChip(
+                      label: entry.$2,
                       selected: mode == entry.$1,
                       onSelected: (selected) {
                         if (selected) controller.setSortMode(entry.$1);
                       },
-                      avatarBoxConstraints: _filterAvatarConstraints,
-                      iconTheme: _filterIconTheme,
                     ),
                 ],
               );
@@ -905,39 +849,17 @@ class _FiltersPanelState extends State<_FiltersPanel> {
 
 const _kFilterIconSize = 20.0;
 
-const _filterAvatarConstraints = BoxConstraints.tightFor(
-  width: _kFilterIconSize,
-  height: _kFilterIconSize,
-);
-
-const _filterIconTheme = IconThemeData(size: _kFilterIconSize);
-
 class _FixedFilterIcon extends StatelessWidget {
-  const _FixedFilterIcon(this.icon, {this.color});
+  const _FixedFilterIcon(this.icon);
 
   final IconData icon;
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox.square(
       dimension: _kFilterIconSize,
-      child: Icon(icon, size: _kFilterIconSize, color: color),
+      child: Icon(icon, size: _kFilterIconSize),
     );
   }
-}
-
-FilterChip _fixedFilterChip({
-  required Widget label,
-  required bool selected,
-  required ValueChanged<bool> onSelected,
-}) {
-  return FilterChip(
-    label: label,
-    selected: selected,
-    onSelected: onSelected,
-    avatarBoxConstraints: _filterAvatarConstraints,
-    iconTheme: _filterIconTheme,
-  );
 }
 

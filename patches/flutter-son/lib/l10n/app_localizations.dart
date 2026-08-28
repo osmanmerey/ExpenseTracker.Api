@@ -239,14 +239,26 @@ abstract class AppLocalizations {
   /// No description provided for @logoutConfirmTitle.
   ///
   /// In tr, this message translates to:
-  /// **'Çıkış yap'**
+  /// **'Oturumu sonlandırmak istediğinize emin misiniz?'**
   String get logoutConfirmTitle;
 
   /// No description provided for @logoutConfirmBody.
   ///
   /// In tr, this message translates to:
-  /// **'Oturumun kapatılacak. Devam etmek istiyor musun?'**
+  /// **'Oturumunuz kapatılacak. Devam etmek istiyor musunuz?'**
   String get logoutConfirmBody;
+
+  /// No description provided for @logoutConfirmAction.
+  ///
+  /// In tr, this message translates to:
+  /// **'Oturumu sonlandır'**
+  String get logoutConfirmAction;
+
+  /// No description provided for @dialogClose.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kapat'**
+  String get dialogClose;
 
   /// No description provided for @cancel.
   ///
@@ -887,13 +899,13 @@ abstract class AppLocalizations {
   /// No description provided for @adminPanelTitle.
   ///
   /// In tr, this message translates to:
-  /// **'Yönetim paneli'**
+  /// **'Yönetim Paneli'**
   String get adminPanelTitle;
 
   /// No description provided for @adminPanelSubtitle.
   ///
   /// In tr, this message translates to:
-  /// **'Kişisel finansal veri içermeyen operasyonel özet.'**
+  /// **'Harcama veya finansal detay içermeyen operasyonel özet.'**
   String get adminPanelSubtitle;
 
   /// No description provided for @adminUserCountLabel.
@@ -902,11 +914,137 @@ abstract class AppLocalizations {
   /// **'Toplam kullanıcı'**
   String get adminUserCountLabel;
 
-  /// No description provided for @adminUserCountValue.
+  /// No description provided for @adminUsersCardTitle.
   ///
   /// In tr, this message translates to:
-  /// **'{count} kullanıcı'**
-  String adminUserCountValue(int count);
+  /// **'Kullanıcılar'**
+  String get adminUsersCardTitle;
+
+  /// No description provided for @adminUsersAdminsLine.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yönetici: {count}'**
+  String adminUsersAdminsLine(int count);
+
+  /// No description provided for @adminManageUsersAction.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcı ekle ve sil'**
+  String get adminManageUsersAction;
+
+  /// No description provided for @adminManageRolesAction.
+  ///
+  /// In tr, this message translates to:
+  /// **'Roller ve yetkiler'**
+  String get adminManageRolesAction;
+
+  /// No description provided for @adminUsersPageTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcılar'**
+  String get adminUsersPageTitle;
+
+  /// No description provided for @adminRolesPageTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Roller ve yetkiler'**
+  String get adminRolesPageTitle;
+
+  /// No description provided for @adminUserDetailTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcı detayı'**
+  String get adminUserDetailTitle;
+
+  /// No description provided for @adminEmailAddress.
+  ///
+  /// In tr, this message translates to:
+  /// **'E-posta adresi'**
+  String get adminEmailAddress;
+
+  /// No description provided for @adminRoleLabel.
+  ///
+  /// In tr, this message translates to:
+  /// **'Rol'**
+  String get adminRoleLabel;
+
+  /// No description provided for @adminRoleUser.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcı'**
+  String get adminRoleUser;
+
+  /// No description provided for @adminRoleAdmin.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yönetici'**
+  String get adminRoleAdmin;
+
+  /// No description provided for @adminAddUser.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcı ekle'**
+  String get adminAddUser;
+
+  /// No description provided for @adminFullName.
+  ///
+  /// In tr, this message translates to:
+  /// **'Ad soyad'**
+  String get adminFullName;
+
+  /// No description provided for @adminDeleteUser.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcıyı sil'**
+  String get adminDeleteUser;
+
+  /// No description provided for @adminDeleteUserTitle.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcıyı silmek istediğinize emin misiniz?'**
+  String get adminDeleteUserTitle;
+
+  /// No description provided for @adminDeleteUserBody.
+  ///
+  /// In tr, this message translates to:
+  /// **'Bu işlem geri alınamaz. Kullanıcının oturumu kapanır.'**
+  String get adminDeleteUserBody;
+
+  /// No description provided for @adminUserCreated.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcı eklendi.'**
+  String get adminUserCreated;
+
+  /// No description provided for @adminUserDeleted.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kullanıcı silindi.'**
+  String get adminUserDeleted;
+
+  /// No description provided for @adminRoleUpdated.
+  ///
+  /// In tr, this message translates to:
+  /// **'Rol güncellendi.'**
+  String get adminRoleUpdated;
+
+  /// No description provided for @adminUnnamedUser.
+  ///
+  /// In tr, this message translates to:
+  /// **'Adsız kullanıcı'**
+  String get adminUnnamedUser;
+
+  /// No description provided for @adminNoUsers.
+  ///
+  /// In tr, this message translates to:
+  /// **'Kayıtlı kullanıcı yok.'**
+  String get adminNoUsers;
+
+  /// No description provided for @adminChangeRole.
+  ///
+  /// In tr, this message translates to:
+  /// **'Rolü kaydet'**
+  String get adminChangeRole;
 
   /// No description provided for @adminSystemStatus.
   ///
@@ -925,6 +1063,24 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'API bağlantısı yok'**
   String get adminSystemOffline;
+
+  /// No description provided for @adminOverviewLoadFailed.
+  ///
+  /// In tr, this message translates to:
+  /// **'Özet yüklenemedi. Lütfen tekrar deneyin.'**
+  String get adminOverviewLoadFailed;
+
+  /// No description provided for @adminPortalSignIn.
+  ///
+  /// In tr, this message translates to:
+  /// **'Yönetici paneli'**
+  String get adminPortalSignIn;
+
+  /// No description provided for @adminUserCountValue.
+  ///
+  /// In tr, this message translates to:
+  /// **'{count} kullanıcı'**
+  String adminUserCountValue(int count);
 
   /// No description provided for @adminUsageSummary.
   ///
@@ -985,18 +1141,6 @@ abstract class AppLocalizations {
   /// In tr, this message translates to:
   /// **'Sistem durumu ve operasyonel özet'**
   String get adminPanelEntrySubtitle;
-
-  /// No description provided for @adminOverviewLoadFailed.
-  ///
-  /// In tr, this message translates to:
-  /// **'Özet yüklenemedi. Lütfen tekrar deneyin.'**
-  String get adminOverviewLoadFailed;
-
-  /// No description provided for @adminPortalSignIn.
-  ///
-  /// In tr, this message translates to:
-  /// **'Yönetici paneli'**
-  String get adminPortalSignIn;
 
   /// No description provided for @pageNumber.
   ///

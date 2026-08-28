@@ -5,6 +5,7 @@ import '../../../../core/l10n/l10n_ext.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/settings/app_settings_controller.dart';
 import '../../../../core/widgets/animated_mesh_background.dart';
+import '../../../../core/widgets/logout_confirm_dialog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 
 /// Profile / settings shell: theme + language + session info + logout.
@@ -201,28 +202,7 @@ class SettingsPage extends StatelessWidget {
               return FilledButton.tonalIcon(
                 onPressed: loading
                     ? null
-                    : () async {
-                        final ok = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: Text(l10n.logoutConfirmTitle),
-                            content: Text(l10n.logoutConfirmBody),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(false),
-                                child: Text(l10n.cancel),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.of(ctx).pop(true),
-                                child: Text(l10n.logout),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (ok == true) {
-                          await auth.logout();
-                        }
-                      },
+                    : () => confirmLogoutAndRun(context, auth.logout),
                 icon: loading
                     ? SizedBox(
                         width: 18,

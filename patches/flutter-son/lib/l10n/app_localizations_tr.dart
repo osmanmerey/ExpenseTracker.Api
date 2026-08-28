@@ -78,11 +78,18 @@ class AppLocalizationsTr extends AppLocalizations {
   String get logout => 'Çıkış yap';
 
   @override
-  String get logoutConfirmTitle => 'Çıkış yap';
+  String get logoutConfirmTitle =>
+      'Oturumu sonlandırmak istediğinize emin misiniz?';
 
   @override
   String get logoutConfirmBody =>
-      'Oturumun kapatılacak. Devam etmek istiyor musun?';
+      'Oturumunuz kapatılacak. Devam etmek istiyor musunuz?';
+
+  @override
+  String get logoutConfirmAction => 'Oturumu sonlandır';
+
+  @override
+  String get dialogClose => 'Kapat';
 
   @override
   String get cancel => 'Vazgeç';
@@ -426,19 +433,84 @@ class AppLocalizationsTr extends AppLocalizations {
   String get adminSection => 'Yönetim';
 
   @override
-  String get adminPanelTitle => 'Yönetim paneli';
+  String get adminPanelTitle => 'Yönetim Paneli';
 
   @override
   String get adminPanelSubtitle =>
-      'Kişisel finansal veri içermeyen operasyonel özet.';
+      'Harcama veya finansal detay içermeyen operasyonel özet.';
 
   @override
   String get adminUserCountLabel => 'Toplam kullanıcı';
 
   @override
-  String adminUserCountValue(int count) {
-    return '$count kullanıcı';
+  String get adminUsersCardTitle => 'Kullanıcılar';
+
+  @override
+  String adminUsersAdminsLine(int count) {
+    return 'Yönetici: $count';
   }
+
+  @override
+  String get adminManageUsersAction => 'Kullanıcı ekle ve sil';
+
+  @override
+  String get adminManageRolesAction => 'Roller ve yetkiler';
+
+  @override
+  String get adminUsersPageTitle => 'Kullanıcılar';
+
+  @override
+  String get adminRolesPageTitle => 'Roller ve yetkiler';
+
+  @override
+  String get adminUserDetailTitle => 'Kullanıcı detayı';
+
+  @override
+  String get adminEmailAddress => 'E-posta adresi';
+
+  @override
+  String get adminRoleLabel => 'Rol';
+
+  @override
+  String get adminRoleUser => 'Kullanıcı';
+
+  @override
+  String get adminRoleAdmin => 'Yönetici';
+
+  @override
+  String get adminAddUser => 'Kullanıcı ekle';
+
+  @override
+  String get adminFullName => 'Ad soyad';
+
+  @override
+  String get adminDeleteUser => 'Kullanıcıyı sil';
+
+  @override
+  String get adminDeleteUserTitle =>
+      'Kullanıcıyı silmek istediğinize emin misiniz?';
+
+  @override
+  String get adminDeleteUserBody =>
+      'Bu işlem geri alınamaz. Kullanıcının oturumu kapanır.';
+
+  @override
+  String get adminUserCreated => 'Kullanıcı eklendi.';
+
+  @override
+  String get adminUserDeleted => 'Kullanıcı silindi.';
+
+  @override
+  String get adminRoleUpdated => 'Rol güncellendi.';
+
+  @override
+  String get adminUnnamedUser => 'Adsız kullanıcı';
+
+  @override
+  String get adminNoUsers => 'Kayıtlı kullanıcı yok.';
+
+  @override
+  String get adminChangeRole => 'Rolü kaydet';
 
   @override
   String get adminSystemStatus => 'Sistem durumu';
@@ -448,6 +520,18 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get adminSystemOffline => 'API bağlantısı yok';
+
+  @override
+  String get adminOverviewLoadFailed =>
+      'Özet yüklenemedi. Lütfen tekrar deneyin.';
+
+  @override
+  String get adminPortalSignIn => 'Yönetici paneli';
+
+  @override
+  String adminUserCountValue(int count) {
+    return '$count kullanıcı';
+  }
 
   @override
   String get adminUsageSummary => 'Kullanım özeti';
@@ -482,13 +566,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get adminPanelEntrySubtitle => 'Sistem durumu ve operasyonel özet';
-
-  @override
-  String get adminOverviewLoadFailed =>
-      'Özet yüklenemedi. Lütfen tekrar deneyin.';
-
-  @override
-  String get adminPortalSignIn => 'Yönetici paneli';
 
   @override
   String pageNumber(int page) {

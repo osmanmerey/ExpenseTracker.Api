@@ -23,10 +23,21 @@ void main() {
     expect(en.income, 'Income');
     expect(tr.recordsCount(3), '3 kayıt');
     expect(en.recordsCount(3), '3 records');
-    expect(tr.adminPanelTitle, 'Yönetim paneli');
-    expect(en.adminPanelTitle, 'Admin panel');
-    expect(tr.adminUserCountValue(4), '4 kullanıcı');
-    expect(en.adminUserCountValue(4), '4 users');
+    expect(tr.adminPanelTitle, 'Yönetim Paneli');
+    expect(en.adminPanelTitle, 'Admin Panel');
+    expect(
+      tr.adminPanelSubtitle,
+      'Harcama veya finansal detay içermeyen operasyonel özet.',
+    );
+    expect(tr.adminPanelSubtitle.contains('Kişisel finansal veri'), isFalse);
+    expect(tr.logoutConfirmAction, 'Oturumu sonlandır');
+    expect(en.logoutConfirmAction, 'End session');
+    expect(en.currencyAll, 'Currency: All');
+    expect(en.sortDateNewest, 'Newest → oldest');
+    expect(en.sortDateOldest, 'Oldest → newest');
+    expect(tr.sortDateNewest, 'Yeni → eski');
+    expect(tr.kindAll, 'Tür: Tümü');
+    expect(en.kindAll, 'Type: All');
     expect(tr.adminPortalSignIn, 'Yönetici paneli');
     expect(en.adminPortalSignIn, 'Admin panel');
   });

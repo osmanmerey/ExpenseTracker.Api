@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/l10n/l10n_ext.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/widgets/animated_mesh_background.dart';
+import '../../../../core/widgets/logout_confirm_dialog.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../controllers/admin_controller.dart';
 
@@ -11,7 +13,10 @@ class AdminDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(AdminController());
+    if (!Get.isRegistered<AdminController>()) {
+      Get.put(AdminController());
+    }
+    final controller = Get.find<AdminController>();
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final l10n = context.l10n;
@@ -23,8 +28,12 @@ class AdminDashboardPage extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: l10n.logout,
-            onPressed: () => Get.find<AuthController>().logout(),
+            onPressed: () => confirmLogoutAndRun(
+              context,
+              Get.find<AuthController>().logout,
+            ),
             icon: const Icon(Icons.logout),
+            style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
           ),
         ],
       ),
@@ -67,6 +76,9 @@ class AdminDashboardPage extends StatelessWidget {
                       onPressed: controller.loadOverview,
                       icon: const Icon(Icons.refresh),
                       label: Text(l10n.retry),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(160, 44),
+                      ),
                     ),
                   ],
                 ),
@@ -74,104 +86,40 @@ class AdminDashboardPage extends StatelessWidget {
             );
           }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            children: [
-              Text(
-                l10n.adminPanelSubtitle,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 20),
-              _OverviewCard(
-                icon: Icons.groups_outlined,
-                title: l10n.adminUserCountLabel,
-                value: l10n.adminUserCountValue(controller.userCount.value),
-              ),
-              const SizedBox(height: 12),
-              _OverviewCard(
-                icon: controller.isApiReachable.value
-                    ? Icons.cloud_done_outlined
-                    : Icons.cloud_off_outlined,
-                title: l10n.adminSystemStatus,
-                value: controller.isApiReachable.value
-                    ? l10n.adminSystemOnline
-                    : l10n.adminSystemOffline,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                l10n.adminUsageSummary,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (controller.userCount.value == 0)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 28,
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 720;
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                children: [
+                  Text(
+                    l10n.adminPanelSubtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
                     ),
-                    child: Column(
+                  ),
+                  const SizedBox(height: 16),
+                  if (stacked) ...[
+                    _UsersSummaryCard(controller: controller),
+                    const SizedBox(height: 12),
+                    const _QuickActions(fullWidth: true),
+                  ] else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.receipt_long,
-                          size: 72,
-                          color: colors.outline,
+                        Expanded(
+                          child: _UsersSummaryCard(controller: controller),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          l10n.noRecordsYet,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: colors.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.adminUsageEmptyHint,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colors.onSurfaceVariant,
-                          ),
+                        const SizedBox(width: 12),
+                        const SizedBox(
+                          width: 260,
+                          child: _QuickActions(fullWidth: true),
                         ),
                       ],
                     ),
-                  ),
-                )
-              else
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            Icons.person_outline,
-                            color: colors.primary,
-                          ),
-                          title: Text(l10n.adminUsageAccounts(
-                            controller.userCount.value,
-                          )),
-                        ),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            Icons.admin_panel_settings_outlined,
-                            color: colors.primary,
-                          ),
-                          title: Text(l10n.adminUsageAdmins(
-                            controller.adminAccountCount.value,
-                          )),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+                ],
+              );
+            },
           );
         }),
       ),
@@ -179,36 +127,99 @@ class AdminDashboardPage extends StatelessWidget {
   }
 }
 
-class _OverviewCard extends StatelessWidget {
-  const _OverviewCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+class _UsersSummaryCard extends StatelessWidget {
+  const _UsersSummaryCard({required this.controller});
 
-  final IconData icon;
-  final String title;
-  final String value;
+  final AdminController controller;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final l10n = context.l10n;
 
     return Card(
-      child: ListTile(
-        leading: Icon(icon, color: colors.primary),
-        title: Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(color: colors.onSurface),
-        ),
-        subtitle: Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-          ),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.adminUsersCardTitle,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: colors.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${controller.userCount.value}',
+              style: theme.textTheme.displaySmall?.copyWith(
+                color: colors.primary,
+                fontWeight: FontWeight.w700,
+                height: 1.05,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.adminUserCountLabel,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.adminUsersAdminsLine(controller.adminAccountCount.value),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.fullWidth});
+
+  final bool fullWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final colors = Theme.of(context).colorScheme;
+
+    final add = FilledButton.icon(
+      onPressed: () => Get.toNamed(AppRoutes.adminUsers),
+      icon: const Icon(Icons.person_add_alt_1_outlined),
+      label: Text(l10n.adminManageUsersAction),
+      style: FilledButton.styleFrom(
+        minimumSize: Size(fullWidth ? double.infinity : 0, 44),
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
+      ),
+    );
+    final roles = OutlinedButton.icon(
+      onPressed: () => Get.toNamed(AppRoutes.adminRoles),
+      icon: const Icon(Icons.admin_panel_settings_outlined),
+      label: Text(l10n.adminManageRolesAction),
+      style: OutlinedButton.styleFrom(
+        minimumSize: Size(fullWidth ? double.infinity : 0, 44),
+        foregroundColor: colors.onSurface,
+        side: BorderSide(color: colors.outline),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        add,
+        const SizedBox(height: 8),
+        roles,
+      ],
     );
   }
 }
